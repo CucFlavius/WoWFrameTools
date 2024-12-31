@@ -260,15 +260,15 @@ public partial class Frame
                 Console.WriteLine($"Registered button: {button}");
     }
 
-    private void SetNormalTexture(Texture texture)
+    private void SetNormalTexture(Texture texture, string? blendMode)
     {
     }
 
-    private void SetHighlightTexture(Texture texture)
+    private void SetHighlightTexture(Texture texture, string? blendMode)
     {
     }
 
-    private void SetPushedTexture(Texture texture)
+    private void SetPushedTexture(Texture texture, string? blendMode)
     {
     }
 
@@ -447,4 +447,25 @@ public partial class Frame
         return line;
     }
 
+    private void SetFixedFrameStrata(bool isFixed)
+    {
+        
+    }
+
+    private void SetFixedFrameLevel(bool isFixed)
+    {
+        
+    }
+
+    private void SetNormalTexture(int fileID, string? blendMode)
+    {
+    }
+
+    private void SetHighlightTexture(int fileID, string? blendMode)
+    {
+    }
+
+    private void SetPushedTexture(int fileID, string? blendMode)
+    {
+    }
 }

@@ -76,4 +76,19 @@ public partial class Texture
     {
         
     }
+
+    private void SetSize(float width, float height)
+    {
+        
+    }
+
+    private void SetPoint(string? point, string? relativeTo, string? relativePoint, float offsetX, float offsetY)
+    {
+        
+    }
+
+    private int[] GetVertexColor()
+    {
+        return [1, 1, 1, 1];
+    }
 }

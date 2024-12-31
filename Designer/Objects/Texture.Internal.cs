@@ -1,18 +1,12 @@
 ﻿using System.Runtime.InteropServices;
 using LuaNET.Lua51;
+using Spectre.Console;
 using static LuaNET.Lua51.Lua;
 
 namespace WoWFrameTools;
 
 public partial class Texture
 {
-    // Dictionary to hold frame methods
-    public static Dictionary<string, lua_CFunction> FrameMethods = new Dictionary<string, lua_CFunction>
-    {
-        { "SetAllPoints", internal_SetAllPoints },
-        // Add other methods...
-    };
-    
     public static void RegisterMetaTable(lua_State L)
     {
         // Create a new metatable for Texture objects
@@ -28,7 +22,10 @@ public partial class Texture
         RegisterTextureMethod(L, "SetTexture", internal_SetTexture);
         RegisterTextureMethod(L, "SetTexCoord", internal_SetTexCoord);
         RegisterTextureMethod(L, "SetVertexColor", internal_SetVertexColor);
+        RegisterTextureMethod(L, "GetVertexColor", internal_GetVertexColor);
         RegisterTextureMethod(L, "SetRotation", internal_SetRotation);
+        RegisterTextureMethod(L, "SetSize", internal_SetSize);
+        RegisterTextureMethod(L, "SetPoint", internal_SetPoint);
         
         lua_settable(L, -3);
 
@@ -46,56 +43,37 @@ public partial class Texture
         lua_settable(L, -3); // metatable.__index[methodName] = function
     }
 
-    public static Texture GetTexture(lua_State L, int index)
+    public static Texture? GetTexture(lua_State L, int index)
     {
-        // Ensure the object at the index has the correct metatable
-        luaL_getmetatable(L, "TextureMetaTable");
-        lua_getmetatable(L, index);
-        var hasMetatable = lua_rawequal(L, -1, -2) != 0;
-        lua_pop(L, 2); // Pop both metatables from the stack
-
-        if (!hasMetatable)
+        if (lua_isuserdata(L, index) != 0)
         {
-            lua_pushstring(L, "Attempt to use a non-Texture object as a Texture.");
-            lua_error(L);
-            return null; // Unreachable
+            IntPtr userdataPtr = (IntPtr)lua_touserdata(L, index);
+            if (Frame._textureRegistry.TryGetValue(userdataPtr, out var texture))
+            {
+                return texture;
+            }
+        }
+        else if (lua_istable(L, index) != 0)
+        {
+            // Assume the table has a '__frame' field containing the userdata
+            lua_pushstring(L, "__frame");      // Push key '__frame'
+            lua_gettable(L, index);             // Get table['__frame']
+            if (lua_islightuserdata(L, -1) != 0)
+            {
+                IntPtr userdataPtr = (IntPtr)lua_touserdata(L, -1);
+                lua_pop(L, 1);                   // Remove '__frame' value from stack
+                if (Frame._textureRegistry.TryGetValue(userdataPtr, out var texture))
+                {
+                    return texture;
+                }
+            }
+            else
+            {
+                lua_pop(L, 1);                   // Remove '__frame' value from stack
+            }
         }
 
-        // Get the userdata pointer
-        var userdataPtr = (IntPtr)lua_touserdata(L, index);
-        if (userdataPtr == IntPtr.Zero)
-        {
-            lua_pushstring(L, "Invalid Texture userdata.");
-            lua_error(L);
-            return null; // Unreachable
-        }
-
-        // Read the IntPtr from the userdata memory
-        var handlePtr = Marshal.ReadIntPtr(userdataPtr);
-        if (handlePtr == IntPtr.Zero)
-        {
-            lua_pushstring(L, "Texture userdata contains a null GCHandle.");
-            lua_error(L);
-            return null; // Unreachable
-        }
-
-        var handle = GCHandle.FromIntPtr(handlePtr);
-        if (!handle.IsAllocated)
-        {
-            lua_pushstring(L, "Texture has been garbage collected.");
-            lua_error(L);
-            return null; // Unreachable
-        }
-
-        var texture = handle.Target as Texture;
-        if (texture == null)
-        {
-            lua_pushstring(L, "Texture userdata references an invalid object.");
-            lua_error(L);
-            return null; // Unreachable
-        }
-
-        return texture;
+        return null; // Frame not found or invalid argument
     }
 
     public static int internal_SetAllPoints(lua_State L)
@@ -302,6 +280,20 @@ public partial class Texture
         return 1;
     }
     
+    public static int internal_GetVertexColor(lua_State L)
+    {
+        var texture = GetTexture(L, 1);
+
+        var color = texture?.GetVertexColor();
+
+        lua_pushnumber(L, color?[0] ?? 1);
+        lua_pushnumber(L, color?[1] ?? 1);
+        lua_pushnumber(L, color?[2] ?? 1);
+        lua_pushnumber(L, color?[3] ?? 1);
+
+        return 4;
+    }
+    
     private static int internal_TextureGC(lua_State L)
     {
         // Retrieve the userdata pointer
@@ -362,5 +354,66 @@ public partial class Texture
         lua_pushboolean(L, 1);
         return 1;
      
+    }
+    
+     /// <summary>
+    ///     Sets the size of the Frame.
+    /// </summary>
+    /// <param name="L">The Lua state.</param>
+    /// <returns>Number of return values (0).</returns>
+    public static int internal_SetSize(lua_State L)
+    {
+        var texture = GetTexture(L, 1);
+
+        var argc = lua_gettop(L);
+        if (argc < 3)
+        {
+            lua_pushstring(L, "SetSize requires at exactly 2 arguments: width, height.");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        var width = (float)lua_tonumber(L, 2);
+        var height = (float)lua_tonumber(L, 3);
+
+        texture?.SetSize(width, height);
+
+        lua_pushboolean(L, 1);
+        return 1;
+    }
+     
+    public static int internal_SetPoint(lua_State L)
+    {
+        var texture = GetTexture(L, 1);
+
+        var argc = lua_gettop(L);
+        if (argc < 2)
+        {
+            lua_pushstring(L, "SetPoint requires at least 1 argument: point.");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        var point = lua_tostring(L, 2);
+        string? relativeTo = null;
+        string? relativePoint = null;
+        float offsetX = 0;
+        float offsetY = 0;
+
+
+        if (argc >= 3) relativeTo = lua_tostring(L, 3);
+        if (argc >= 4) relativePoint = lua_tostring(L, 4);
+
+        if (argc == 5) AnsiConsole.MarkupLine("Offset requires both X and Y values.");
+        if (argc == 6)
+        {
+            offsetX = (float)lua_tonumber(L, 5);
+            offsetY = (float)lua_tonumber(L, 6);
+        }
+
+        texture?.SetPoint(point, relativeTo, relativePoint, offsetX, offsetY);
+
+        lua_pushboolean(L, 1);
+        return 1;
     }
 }

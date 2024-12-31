@@ -55,6 +55,7 @@ public partial class Global
         RegisterC_AddOns(L);
         RegisterC_ChatInfo(L);
     }
+    
     public static int internal_CreateFrame(lua_State L)
     {
         // Retrieve arguments from Lua (frameType, name, parent, template, id)
