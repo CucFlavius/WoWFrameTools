@@ -11,8 +11,339 @@ public partial class Frame
     public static readonly Dictionary<IntPtr, Frame> _frameRegistry = new();
     public static readonly Dictionary<IntPtr, Texture> _textureRegistry = new();
     public static readonly Dictionary<IntPtr, FontString> _fontStringRegistry = new();
+    public static readonly Dictionary<IntPtr, Line> _lineRegistry = new();
     public static readonly Dictionary<string, HashSet<Frame>> _eventToFrames = new();
 
+    /*
+    // Dictionary to hold frame methods
+    public static Dictionary<string, lua_CFunction> FrameMethods = new Dictionary<string, lua_CFunction>
+    {
+        { "RegisterEvent", internal_RegisterEvent },
+        { "SetScript", internal_SetScript },
+        { "HookScript", internal_HookScript },
+        { "TriggerEvent", internal_TriggerEvent },
+        { "Show", internal_Show },
+        { "Hide", internal_Hide },
+        { "SetPoint", internal_SetPoint },
+        { "SetAllPoints", internal_SetAllPoints },
+        { "SetVertexOffset", internal_SetVertexOffset },
+        { "SetFrameStrata", internal_SetFrameStrata },
+        { "CreateTexture", internal_CreateTexture },
+        { "CreateFontString", internal_CreateFontString },
+        { "UnregisterEvent", internal_UnregisterEvent },
+        { "UnregisterAllEvents", internal_UnregisterAllEvents },
+        { "SetHeight", internal_SetHeight },
+        { "SetWidth", internal_SetWidth },
+        { "SetSize", internal_SetSize },
+        { "SetMovable", internal_SetMovable },
+        { "EnableMouse", internal_EnableMouse },
+        { "SetClampedToScreen", internal_SetClampedToScreen },
+        { "RegisterForDrag", internal_RegisterForDrag },
+        { "SetNormalTexture", internal_SetNormalTexture },
+        { "SetHighlightTexture", internal_SetHighlightTexture },
+        { "SetPushedTexture", internal_SetPushedTexture },
+        { "GetWidth", internal_GetWidth },
+    };
+    
+    public static void RegisterFrameMetaTable(lua_State L)
+    {
+        // Create a new metatable named "FrameMetaTable"
+        luaL_newmetatable(L, "FrameMetaTable");
+
+        // Set the __index metamethod
+        lua_pushstring(L, "__index");
+        lua_pushcfunction(L, internal_FrameIndex);
+        lua_settable(L, -3); // metatable.__index = internal_FrameIndex
+
+        // Set the __newindex metamethod
+        lua_pushstring(L, "__newindex");
+        lua_pushcfunction(L, internal_FrameNewIndex);
+        lua_settable(L, -3); // metatable.__newindex = internal_FrameNewIndex
+
+        // Set the __tostring metamethod
+        lua_pushstring(L, "__tostring");
+        lua_pushcfunction(L, internal_FrameToString);
+        lua_settable(L, -3); // metatable.__tostring = internal_FrameToString
+
+        // Set the __gc metamethod
+        lua_pushstring(L, "__gc");
+        lua_pushcfunction(L, internal_FrameGC);
+        lua_settable(L, -3); // metatable.__gc = internal_FrameGC
+
+        // Pop the metatable from the stack
+        lua_pop(L, 1);
+    }
+    
+    public static int internal_FrameIndex(lua_State L)
+    {
+        // Stack:
+        // 1 - table
+        // 2 - key
+
+        // Retrieve the table
+        if (lua_istable(L, 1) == 0)
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+
+        // Retrieve the key
+        if (lua_isstring(L, 2) == 0)
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+
+        string key = lua_tostring(L, 2);
+
+        // Retrieve the Frame userdata from the table's __frame field
+        lua_pushstring(L, "__frame");
+        lua_gettable(L, 1); // table.__frame
+        if (lua_islightuserdata(L, -1) == 0)
+        {
+            lua_pop(L, 1);
+            lua_pushnil(L);
+            return 1;
+        }
+
+        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
+        lua_pop(L, 1); // Remove __frame userdata from the stack
+
+        // Retrieve the Frame instance
+        if (!Frame._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+
+        // Check if the key is a method
+        if (FrameMethods.TryGetValue(key, out var method))
+        {
+            lua_pushcfunction(L, method);
+            return 1;
+        }
+
+        // Check if the key is a property
+        if (frame.Properties.TryGetValue(key, out var value))
+        {
+            // Push the property value to the Lua stack
+            if (value is string s)
+            {
+                lua_pushstring(L, s);
+            }
+            else if (value is float f)
+            {
+                lua_pushnumber(L, f);
+            }
+            else if (value is bool b)
+            {
+                lua_pushboolean(L, b ? 1 : 0);
+            }
+            else if (value == null)
+            {
+                lua_pushnil(L);
+            }
+            else
+            {
+                // Handle other types or push userdata if necessary
+                lua_pushnil(L);
+            }
+
+            return 1;
+        }
+
+        // If not a method or property, return nil
+        lua_pushnil(L);
+        return 1;
+    }
+    
+    public static int internal_FrameNewIndex(lua_State L)
+    {
+        // Stack:
+        // 1 - table
+        // 2 - key
+        // 3 - value
+
+        // Retrieve the table
+        if (lua_istable(L, 1) == 0)
+        {
+            lua_pushstring(L, "Frame: newindex called on non-table");
+            lua_error(L);
+            return 0; // Not reached, lua_error throws
+        }
+
+        // Retrieve the key
+        if (lua_isstring(L, 2) == 0)
+        {
+            lua_pushstring(L, "Frame: Property name must be a string");
+            lua_error(L);
+            return 0;
+        }
+
+        string key = lua_tostring(L, 2);
+
+        // Retrieve the Frame userdata from the table's __frame field
+        lua_pushstring(L, "__frame");
+        lua_gettable(L, 1); // table.__frame
+        if (lua_islightuserdata(L, -1) == 0)
+        {
+            lua_pop(L, 1);
+            lua_pushstring(L, "Frame: __frame field is missing or invalid");
+            lua_error(L);
+            return 0;
+        }
+
+        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
+        lua_pop(L, 1); // Remove __frame userdata from the stack
+
+        // Retrieve the Frame instance
+        if (!Frame._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
+        {
+            lua_pushstring(L, "Frame: Frame not found in registry");
+            lua_error(L);
+            return 0;
+        }
+
+        // Get the value to set
+        object? value = null;
+
+        if (lua_isstring(L, 3) != 0)
+        {
+            value = lua_tostring(L, 3);
+        }
+        else if (lua_isnumber(L, 3) != 0)
+        {
+            value = lua_tonumber(L, 3);
+        }
+        else if (lua_isboolean(L, 3) != 0)
+        {
+            value = lua_toboolean(L, 3) != 0;
+        }
+        else if (lua_islightuserdata(L, 3) != 0)
+        {
+            // Handle userdata assignments if necessary
+            value = (IntPtr)lua_touserdata(L, 3);
+        }
+        else if (lua_isnil(L, 3) != 0)
+        {
+            value = null;
+        }
+        else
+        {
+            lua_pushstring(L, $"Frame: Unsupported value type for property '{key}'");
+            lua_error(L);
+            return 0;
+        }
+
+        // Set the property on the Frame instance
+        bool success = frame.SetProperty(key, value);
+
+        if (!success)
+        {
+            lua_pushstring(L, $"Frame: Unknown property '{key}' or invalid value");
+            lua_error(L);
+            return 0;
+        }
+
+        return 0; // __newindex does not return any values
+    }
+    
+    */
+    
+    public static int internal_FrameToString(lua_State L)
+    {
+        try
+        {
+            // Stack:
+            // 1 - table
+
+            // Retrieve the table
+            if (lua_istable(L, 1) == 0)
+            {
+                lua_pushstring(L, "Frame: Invalid Frame Table");
+                return 1;
+            }
+
+            // Retrieve the Frame userdata from the table's __frame field
+            lua_pushstring(L, "__frame");
+            lua_gettable(L, 1); // table.__frame
+            if (lua_islightuserdata(L, -1) == 0)
+            {
+                lua_pop(L, 1);
+                lua_pushstring(L, "Frame: __frame field is missing or invalid");
+                return 1;
+            }
+
+            IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
+            lua_pop(L, 1); // Remove __frame userdata from the stack
+
+            // Retrieve the Frame instance
+            if (!Frame._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
+            {
+                lua_pushstring(L, "Frame: Frame not found in registry");
+                return 1;
+            }
+
+            // Construct a meaningful string representation
+            string frameName = string.IsNullOrEmpty(frame._name) ? "Unnamed" : frame._name;
+            string frameType = frame._frameType;
+            int frameId = frame._id;
+
+            string result = $"Frame: Name='{frameName}', Type='{frameType}', ID={frameId}";
+
+            // Push the string onto the Lua stack
+            lua_pushstring(L, result);
+            return 1; // Number of return values
+        }
+        catch (Exception ex)
+        {
+            lua_pushstring(L, $"Frame: Error - {ex.Message}");
+            return 1;
+        }
+    }
+    
+    public static int internal_FrameGC(lua_State L)
+    {
+        // Stack:
+        // 1 - table
+
+        // Retrieve the table
+        if (lua_istable(L, 1) == 0)
+        {
+            return 0;
+        }
+
+        // Retrieve the Frame userdata from the table's __frame field
+        lua_pushstring(L, "__frame");
+        lua_gettable(L, 1); // table.__frame
+        if (lua_islightuserdata(L, -1) == 0)
+        {
+            lua_pop(L, 1);
+            return 0;
+        }
+
+        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
+        lua_pop(L, 1); // Remove __frame userdata from the stack
+
+        // Retrieve the Frame instance
+        if (Frame._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
+        {
+            // Free the GCHandle
+            if (frame.Handle.IsAllocated)
+            {
+                frame.Handle.Free();
+            }
+
+            // Remove from registry
+            Frame._frameRegistry.Remove(frameUserdataPtr);
+
+            // Perform any additional cleanup if necessary
+            // Example: frame.Dispose();
+        }
+
+        return 0;
+    }
+    
     public static void RegisterMetaTable(lua_State L)
     {
         // Create a new metatable for Frame
@@ -47,6 +378,27 @@ public partial class Frame
         RegisterFrameMethod(L, "SetHighlightTexture", internal_SetHighlightTexture);
         RegisterFrameMethod(L, "SetPushedTexture", internal_SetPushedTexture);
         RegisterFrameMethod(L, "GetWidth", internal_GetWidth);
+        RegisterFrameMethod(L, "SetResizable", internal_SetResizable);
+        RegisterFrameMethod(L, "SetResizeBounds", internal_SetResizeBounds);
+        RegisterFrameMethod(L, "SetVertexColor", internal_SetVertexColor);
+        RegisterFrameMethod(L, "SetScale", internal_SetScale);
+        RegisterFrameMethod(L, "ClearAllPoints", internal_ClearAllPoints);
+        RegisterFrameMethod(L, "SetFrameLevel", internal_SetFrameLevel);
+        RegisterFrameMethod(L, "GetEffectiveScale", internal_GetEffectiveScale);
+        RegisterFrameMethod(L, "GetHeight", internal_GetHeight);
+        RegisterFrameMethod(L, "GetFrameLevel", internal_GetFrameLevel);
+        RegisterFrameMethod(L, "SetAlpha", internal_SetAlpha);
+        RegisterFrameMethod(L, "SetClipsChildren", internal_SetClipsChildren);
+        RegisterFrameMethod(L, "SetUserPlaced", internal_SetUserPlaced);
+        RegisterFrameMethod(L, "RegisterForClicks", internal_RegisterForClicks);
+        RegisterFrameMethod(L, "SetFont", internal_SetFont);
+        RegisterFrameMethod(L, "SetText", internal_SetText);
+        RegisterFrameMethod(L, "SetAutoFocus", internal_SetAutoFocus);
+        RegisterFrameMethod(L, "SetMaxLetters", internal_SetMaxLetters);
+        RegisterFrameMethod(L, "SetParent", internal_SetParent);
+        RegisterFrameMethod(L, "GetChildren", internal_GetChildren);
+        RegisterFrameMethod(L, "GetParent", internal_GetParent);
+        RegisterFrameMethod(L, "CreateLine", internal_CreateLine);
 
         // Set the __index table
         lua_settable(L, -3);
@@ -79,15 +431,37 @@ public partial class Frame
 
     public static Frame? GetFrame(lua_State L, int index)
     {
-        if (lua_isuserdata(L, index) == 0)
-            return null;
+        if (lua_isuserdata(L, index) != 0)
+        {
+            IntPtr userdataPtr = (IntPtr)lua_touserdata(L, index);
+            if (Frame._frameRegistry.TryGetValue(userdataPtr, out var frame))
+            {
+                return frame;
+            }
+        }
+        else if (lua_istable(L, index) != 0)
+        {
+            // Assume the table has a '__frame' field containing the userdata
+            lua_pushstring(L, "__frame");      // Push key '__frame'
+            lua_gettable(L, index);             // Get table['__frame']
+            if (lua_islightuserdata(L, -1) != 0)
+            {
+                IntPtr userdataPtr = (IntPtr)lua_touserdata(L, -1);
+                lua_pop(L, 1);                   // Remove '__frame' value from stack
+                if (Frame._frameRegistry.TryGetValue(userdataPtr, out var frame))
+                {
+                    return frame;
+                }
+            }
+            else
+            {
+                lua_pop(L, 1);                   // Remove '__frame' value from stack
+            }
+        }
 
-        var userdataPtr = (IntPtr)lua_touserdata(L, index);
-        if (_frameRegistry.TryGetValue(userdataPtr, out var frame)) return frame;
-
-        return null;
+        return null; // Frame not found or invalid argument
     }
-
+    
     // RegisterEvent method callable from Lua
     public static int internal_RegisterEvent(lua_State L)
     {
@@ -606,7 +980,7 @@ public partial class Frame
             }
         }
     }
-
+/*
     public static int internal_FrameGC(lua_State L)
     {
         // Retrieve the userdata pointer
@@ -625,7 +999,7 @@ public partial class Frame
 
         return 0;
     }
-
+*/
     /// <summary>
     ///     https://warcraft.wiki.gg/wiki/API_ScriptRegionResizing_SetAllPoints
     ///     ScriptRegionResizing:SetAllPoints([relativeTo, doResize])
@@ -723,41 +1097,78 @@ public partial class Frame
     /// </summary>
     /// <param name="L"></param>
     /// <returns></returns>
+ // Implement internal_CreateTexture
     public static int internal_CreateTexture(lua_State L)
     {
-        // Retrieve the frame from the first argument
-        var frame = GetFrame(L, 1);
-        if (frame == null)
+        // Stack:
+        // 1 - table
+        // 2 - name
+        // 3 - layer
+
+        // Retrieve the table
+        if (lua_istable(L, 1) == 0)
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+
+        // Retrieve the Frame userdata from the table's __frame field
+        lua_pushstring(L, "__frame");
+        lua_gettable(L, 1); // table.__frame
+        if (lua_islightuserdata(L, -1) == 0)
+        {
+            lua_pop(L, 1);
+            lua_pushnil(L);
+            return 1;
+        }
+
+        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
+        lua_pop(L, 1); // Remove __frame userdata from the stack
+
+        // Retrieve the Frame instance
+        if (!Frame._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
         {
             lua_pushnil(L);
             return 1;
         }
 
         // Retrieve arguments: name, layer
-        var textureName = lua_tostring(L, 2) ?? "Texture";
-        var drawLayer = lua_tostring(L, 3) ?? "BACKGROUND";
+        string? textureName = null;
+        if (lua_gettop(L) >= 2) textureName = lua_tostring(L, 2);
+        string? drawLayer = null;
+        if (lua_gettop(L) >= 3) drawLayer = lua_tostring(L, 3);
         string? templateName = null;
-        var subLevel = 0;
-
         if (lua_gettop(L) >= 4) templateName = lua_tostring(L, 4);
+        int subLevel = 0;
         if (lua_gettop(L) >= 5) subLevel = (int)lua_tonumber(L, 5);
 
         // Create the texture
-        var texture = frame.CreateTexture(textureName, drawLayer, templateName, subLevel);
+        Texture texture = frame.CreateTexture(textureName, drawLayer, templateName, subLevel);
 
-        // Push the texture as userdata
-        var handle = GCHandle.Alloc(texture);
-        var handlePtr = GCHandle.ToIntPtr(handle);
+        // Allocate a GCHandle to prevent garbage collection
+        GCHandle handle = GCHandle.Alloc(texture);
+        IntPtr handlePtr = GCHandle.ToIntPtr(handle);
 
-        var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
-        Marshal.WriteIntPtr(userdataPtr, handlePtr);
+        // Create userdata with the size of IntPtr
+        IntPtr textureUserdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+
+        // Write the handlePtr into the userdata memory
+        Marshal.WriteIntPtr(textureUserdataPtr, handlePtr);
 
         // Set the metatable for the texture userdata
         luaL_getmetatable(L, "TextureMetaTable"); // Ensure TextureMetaTable is defined
         lua_setmetatable(L, -2);
 
-        // Register the texture in a registry if needed
-        _textureRegistry[userdataPtr] = texture;
+        // Add the Texture to the registry for later retrieval
+        _textureRegistry[textureUserdataPtr] = texture;
+
+        // Assign the userdataPtr and LuaRegistryRef to the Texture instance
+        texture.UserdataPtr = textureUserdataPtr;
+
+        // Create a reference to the userdata in the Lua registry
+        lua_pushvalue(L, -1); // Push the userdata
+        int refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
+        texture.LuaRegistryRef = refIndex;
 
         return 1; // Return the texture userdata
     }
@@ -1006,114 +1417,420 @@ public partial class Frame
         return 1;
     }
 
-    public static int internal_FrameToString(lua_State L)
+    public static int internal_SetResizable(lua_State L)
     {
-        // Retrieve the userdata (Frame) from the first argument
         var frame = GetFrame(L, 1);
-        if (frame == null)
-        {
-            lua_pushstring(L, "Frame: Invalid Frame");
-            return 1;
-        }
+        var resizable = lua_toboolean(L, 2) != 0;
 
-        // Construct a meaningful string representation
-        var frameName = string.IsNullOrEmpty(frame._name) ? "Unnamed" : frame._name;
-        var frameType = frame._frameType;
-        var frameRegistryRef = frame.LuaRegistryRef;
+        frame?.SetResizable(resizable);
 
-        var result = $"Frame: Name='{frameName}', Type='{frameType}', Ref={frameRegistryRef}";
-
-        // Push the string onto the Lua stack
-        lua_pushstring(L, result);
-        return 1; // Number of return values
+        return 0;
     }
 
-    public static int internal_FrameNewIndex(lua_State L)
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Frame_SetResizeBounds
+    /// Frame:SetResizeBounds(minWidth, minHeight [, maxWidth, maxHeight])
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int internal_SetResizeBounds(lua_State L)
     {
-        // Ensure there are at least two arguments: userdata and key
+        var frame = GetFrame(L, 1);
+
+        var argc = lua_gettop(L);
+        if (argc < 3)
+        {
+            lua_pushstring(L, "SetResizeBounds requires at least 2 arguments: minWidth and minHeight.");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        var minWidth = (float)lua_tonumber(L, 2);
+        var minHeight = (float)lua_tonumber(L, 3);
+        float? maxWidth = null;
+        float? maxHeight = null;
+
+        if (argc >= 4)
+        {
+            maxWidth = (float)lua_tonumber(L, 4);
+        }
+
+        if (argc >= 5)
+        {
+            maxHeight = (float)lua_tonumber(L, 5);
+        }
+
+        frame?.SetResizeBounds(minWidth, minHeight, maxWidth, maxHeight);
+
+        lua_pushboolean(L, 1);
+        return 1;
+    }
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Region_SetVertexColor
+    /// Region:SetVertexColor(colorR, colorG, colorB [, a])
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int internal_SetVertexColor(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+
+        var argc = lua_gettop(L);
+        if (argc < 3)
+        {
+            lua_pushstring(L, "SetVertexColor requires at least 3 arguments: colorR, colorG, colorB.");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        var colorR = (float)lua_tonumber(L, 2);
+        var colorG = (float)lua_tonumber(L, 3);
+        var colorB = (float)lua_tonumber(L, 4);
+        float? colorA = null;
+
+        if (argc >= 5)
+        {
+            colorA = (float)lua_tonumber(L, 5);
+        }
+
+        frame?.SetVertexColor(colorR, colorG, colorB, colorA);
+
+        lua_pushboolean(L, 1);
+        return 1;
+    }
+    
+    public static int internal_SetScale(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var scale = (float)lua_tonumber(L, 2);
+
+        frame?.SetScale(scale);
+
+        return 0;
+    }
+    
+    public static int internal_ClearAllPoints(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+
+        frame?.ClearAllPoints();
+
+        return 0;
+    }
+    
+    public static int internal_SetFrameLevel(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var level = (int)lua_tonumber(L, 2);
+
+        frame?.SetFrameLevel(level);
+
+        return 0;
+    }
+    
+    public static int internal_GetEffectiveScale(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var scale = frame?.GetEffectiveScale() ?? 1;
+
+        lua_pushnumber(L, scale);
+        return 1;
+    }
+    
+    public static int internal_GetHeight(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var height = frame?.GetHeight() ?? 0;
+
+        lua_pushnumber(L, height);
+        return 1;
+    }
+    
+    public static int internal_GetFrameLevel(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var level = frame?.GetFrameLevel() ?? 0;
+
+        lua_pushnumber(L, level);
+        return 1;
+    }
+    
+    public static int internal_SetAlpha(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var alpha = (float)lua_tonumber(L, 2);
+
+        frame?.SetAlpha(alpha);
+
+        return 0;
+    }
+    
+    public static int internal_SetClipsChildren(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var clips = lua_toboolean(L, 2) != 0;
+
+        frame?.SetClipsChildren(clips);
+
+        return 0;
+    }
+    
+    public static int internal_SetUserPlaced(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var placed = lua_toboolean(L, 2) != 0;
+
+        frame?.SetUserPlaced(placed);
+
+        return 0;
+    }
+
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Button_RegisterForClicks
+    /// Button:RegisterForClicks([button1, ...])
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int internal_RegisterForClicks(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+
         var argc = lua_gettop(L);
         if (argc < 2)
         {
-            lua_pushstring(L, "Frame: newindex requires at least a key and a value");
+            lua_pushstring(L, "RegisterForClicks requires at least 1 argument: button1.");
             lua_error(L);
-            return 0; // Not reached, lua_error throws
+            return 0; // Unreachable
         }
 
-        // Retrieve the Frame object from the first argument (userdata)
+        List<string> buttons = new();
+        for (var i = 2; i <= argc; i++)
+        {
+            if (lua_isstring(L, i) != 0)
+            {
+                var button = lua_tostring(L, i);
+                buttons.Add(button);
+            }
+            else
+            {
+                throw new ArgumentException($"Argument {i} is not a valid string.");
+            }
+        }
+
+        frame?.RegisterForClicks(buttons.ToArray());
+
+        lua_pushboolean(L, 1);
+        return 1;
+        
+    }
+    
+    
+    public static int internal_SetText(lua_State L)
+    {
+        try
+        {
+            var frame = GetFrame(L, 1);
+            if (frame == null)
+            {
+                lua_pushstring(L, "SetText: Invalid FontString object.");
+                lua_error(L);
+                return 0; // Unreachable
+            }
+
+            var text = lua_tostring(L, 2) ?? "";
+
+            frame.SetText(text);
+        }
+        catch (Exception ex)
+        {
+            lua_pushstring(L, $"SetText: {ex.Message}");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        return 0; // No return values
+    }
+
+    /// <summary>
+    ///     https://warcraft.wiki.gg/wiki/API_FontInstance_SetFont
+    ///     success = FontInstance:SetFont(fontFile, height, flags)
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int internal_SetFont(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+
+        var argc = lua_gettop(L);
+        if (argc != 4)
+        {
+            lua_pushstring(L, "SetFont requires exactly 3 arguments: fontFile, height, flags.");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        var fontFile = lua_tostring(L, 2);
+        var height = (int)lua_tonumber(L, 3);
+        var flags = lua_tostring(L, 4);
+
+        var success = frame?.SetFont(fontFile, height, flags);
+
+        lua_pushboolean(L, success == true ? 1 : 0);
+        return 1;
+    }
+    
+    public static int internal_SetAutoFocus(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var autoFocus = lua_toboolean(L, 2) != 0;
+
+        frame?.SetAutoFocus(autoFocus);
+
+        return 0;
+    }
+    
+    public static int internal_SetMaxLetters(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var maxLetters = (int)lua_tonumber(L, 2);
+
+        frame?.SetMaxLetters(maxLetters);
+
+        return 0;
+    }
+    
+    public static int internal_SetParent(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var parent = GetFrame(L, 2);
+
+        frame?.SetParent(parent);
+
+        return 0;
+    }
+    
+    public static int internal_GetChildren(lua_State L)
+    {
+        // 1) Get the C# Frame instance
         var frame = GetFrame(L, 1);
         if (frame == null)
         {
-            lua_pushstring(L, "Frame: Invalid Frame userdata");
-            lua_error(L);
-            return 0;
+            return 0; // No valid frame -> no return values
         }
 
-        // Get the key (property name) from the second argument
-        if (lua_isstring(L, 2) == 0)
+        // 2) Get its children
+        var children = frame.GetChildren(); // e.g. returns List<Frame> or similar
+        if (children == null || children.Count == 0)
         {
-            lua_pushstring(L, "Frame: Property name must be a string");
-            lua_error(L);
-            return 0;
+            return 0; // No children -> no return values
         }
 
-        var propertyName = lua_tostring(L, 2);
+        // 3) Push each child as a separate return
+        int count = 0;
+        foreach (var child in children)
+        {
+            if (child == null) continue;
 
-        // Get the value from the third argument
-        // Note: Lua allows setting with multiple arguments, but typically it's frame.key = value
-        if (argc < 3)
-        {
-            lua_pushstring(L, "Frame: No value provided for property assignment");
-            lua_error(L);
-            return 0;
-        }
+            // Push the child's existing Lua object/table/userdata
+            // so that Lua sees it as a proper "Frame". For example:
+            PushExistingFrameToLua(L, child);
 
-        // Depending on your design, you might support different types
-        // For simplicity, we'll assume the value is a basic type (string, number, boolean)
-        object? value = null;
-
-        if (lua_isstring(L, 3) != 0)
-        {
-            value = lua_tostring(L, 3);
-        }
-        else if (lua_isnumber(L, 3) != 0)
-        {
-            value = lua_tonumber(L, 3);
-        }
-        else if (lua_isboolean(L, 3) != 0)
-        {
-            value = lua_toboolean(L, 3) != 0;
-        }
-        else if (lua_isuserdata(L, 3) != 0)
-        {
-            // Handle userdata assignments if necessary
-            // For example, setting a parent frame or a texture
-            var userdataPtr = (IntPtr)lua_touserdata(L, 3);
-            // You can retrieve the associated C# object if needed
-            // Example: Frame relativeFrame = GetFrameFromUserdata(userdataPtr);
-            // Assign relativeFrame to a property
-            value = userdataPtr; // Or handle appropriately
-        }
-        else if (lua_isnil(L, 3) != 0)
-        {
-            value = null;
-        }
-        else
-        {
-            lua_pushstring(L, $"Frame: Unsupported value type for property '{propertyName}'");
-            lua_error(L);
-            return 0;
+            count++;
         }
 
-        // Set the property on the Frame instance
-        var success = frame.SetProperty(propertyName, value);
+        // 4) Return the number of values
+        return count;
+    }
 
-        if (!success)
+    /// <summary>
+    /// Pushes the existing Lua table (or userdata) that represents a Frame onto the stack.
+    /// This is similar to what you'd do in internal_CreateFrame, but for an already existing frame.
+    /// </summary>
+    public static void PushExistingFrameToLua(lua_State L, Frame child)
+    {
+        // If you're storing the table in child.LuaRegistryRef, do:
+        lua_rawgeti(L, LUA_REGISTRYINDEX, child.LuaRegistryRef);
+        // Now the child's table/userdata is on top of the stack.
+        // If child has no registry ref, you might need to create one or log an error.
+    }
+    
+    public static int internal_GetParent(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var parent = frame?.GetParent();
+
+        if (parent == null)
         {
-            //lua_pushstring(L, $"Frame: Unknown property '{propertyName}' or invalid value");
-            //lua_error(L);
-            //return 0;
+            lua_pushnil(L);
+            return 1;
         }
 
-        return 0; // __newindex does not return any values
+        // Push the parent's existing Lua object/table/userdata
+        // so that Lua sees it as a proper "Frame". For example:
+        PushExistingFrameToLua(L, parent);
+
+        return 1;
+    }
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Frame_CreateLine
+    /// line = Frame:CreateLine([name, drawLayer, templateName, subLevel])
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="drawLayer"></param>
+    /// <param name="templateName"></param>
+    /// <returns></returns>
+    public static int internal_CreateLine(lua_State L)
+    {
+        // Retrieve the Frame object (assuming the first argument is the Frame userdata)
+        var frame = GetFrame(L, 1);
+        if (frame == null)
+        {
+            lua_pushnil(L);
+            return 1;
+        }
+
+        // Retrieve arguments: name, layer
+        string? name = null;
+        if (lua_gettop(L) >= 2) name = lua_tostring(L, 2);
+        string? drawLayer = null;
+        if (lua_gettop(L) >= 3) drawLayer = lua_tostring(L, 3);
+        string? templateName = null;
+        if (lua_gettop(L) >= 4) templateName = lua_tostring(L, 4);
+        int subLevel = 0;
+        if (lua_gettop(L) >= 5) subLevel = (int)lua_tonumber(L, 5);
+
+        // Create the line
+        Line line = frame.CreateLine(name, drawLayer, templateName, subLevel);
+        
+        // Allocate a GCHandle to prevent the Frame from being garbage collected
+        var handle = GCHandle.Alloc(line);
+        var handlePtr = GCHandle.ToIntPtr(handle);
+
+        // Create userdata with the size of IntPtr
+        var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+
+        // Write the handlePtr into the userdata memory
+        Marshal.WriteIntPtr(userdataPtr, handlePtr);
+
+        // Set the metatable for the userdata
+        luaL_getmetatable(L, "LineMetaTable");
+        lua_setmetatable(L, -2);
+
+        // Add the Frame to the registry for later retrieval
+        _lineRegistry[userdataPtr] = line;
+
+        // Assign the userdataPtr and LuaRegistryRef to the Frame instance
+        line.UserdataPtr = userdataPtr;
+
+        // Create a reference to the userdata in the registry
+        lua_pushvalue(L, -1); // Push the userdata
+        var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
+        line.LuaRegistryRef = refIndex;
+
+        Log.CreateLine(line);
+        
+        return 1;
     }
 }

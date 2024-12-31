@@ -11,14 +11,17 @@ public partial class Frame
     private readonly string? _frameType;
     private readonly lua_State _luaState;
     private readonly string? _name;
-    private readonly Frame? _parent;
+    private readonly int _id;
+    private Frame? _parent;
     private readonly HashSet<string> _registeredEvents;
 
     // Dictionary to store script type names and their Lua references
     public readonly Dictionary<string, int> _scriptRefs;
     private readonly Dictionary<string, List<ScriptHandler>?> _scripts;
+    public Dictionary<string, object?> Properties { get; private set; } = new Dictionary<string, object?>();
     private readonly string? _template;
     private readonly List<Texture> _textures;
+    private List<Line> _lines;
     private float _height;
     private float _offsetX;
     private float _offsetY;
@@ -27,6 +30,7 @@ public partial class Frame
     private string? _relativeTo;
     private string? _strata;
     private float _width;
+    private bool _visible;
 
     public Frame(lua_State luaState)
     {
@@ -38,6 +42,7 @@ public partial class Frame
         LuaRegistryRef = -1; // Initialize to invalid reference
         _textures = [];
         _fontStrings = [];
+        _lines = [];
     }
 
     public Frame(lua_State luaState, string? frameType, string? name, Frame? parent, string? template, int id)
@@ -50,14 +55,15 @@ public partial class Frame
         LuaRegistryRef = -1; // Initialize to invalid reference
         _textures = [];
         _fontStrings = [];
+        _lines = [];
 
         _frameType = frameType;
         _name = name;
         _parent = parent;
         _template = template;
+        _id = id;
     }
 
-    private bool _visible { get; set; }
     public IntPtr UserdataPtr { get; set; }
     public int LuaRegistryRef { get; set; }
     public GCHandle Handle { get; set; }
@@ -279,46 +285,166 @@ public partial class Frame
             case "Width":
                 if (value is double width)
                 {
-                    _width = (float)width;
+                    this._width = (float)width;
                     // Apply the width to the underlying UI element
                     // Example: this.UIElement.SetWidth(this.Width);
+                    Properties["Width"] = this._width;
                     return true;
                 }
-
                 break;
 
             case "Height":
                 if (value is double height)
                 {
-                    _height = (float)height;
+                    this._height = (float)height;
                     // Apply the height to the underlying UI element
                     // Example: this.UIElement.SetHeight(this.Height);
+                    Properties["Height"] = this._height;
                     return true;
                 }
-
                 break;
 
             case "Visible":
                 if (value is bool visible)
                 {
-                    _visible = visible;
+                    this._visible = visible;
                     // Apply visibility to the underlying UI element
                     // Example: this.UIElement.SetVisible(this.Visible);
+                    Properties["Visible"] = this._visible;
                     return true;
                 }
+                break;
 
+            case "TexturePath":
+                if (value is string texturePath)
+                {
+                    //this.TexturePath = texturePath;
+                    // Apply the texture to the frame
+                    // Example: this.UIElement.SetTexture(this.TexturePath);
+                    //Properties["TexturePath"] = this.TexturePath;
+                    return true;
+                }
                 break;
 
             // Add cases for other properties...
 
             default:
                 // Handle unknown properties or delegate to a default handler
-                Log.Warn($"Unknown property '{propertyName}'");
+                // Example: Log.Warn($"Unknown property '{propertyName}'");
                 return false;
         }
 
         // If the property name exists but the value type is incorrect
-        Log.Warn($"Invalid value type for property '{propertyName}'");
+        // Example: Log.Warn($"Invalid value type for property '{propertyName}'");
         return false;
     }
+
+    private void SetResizable(bool resizable)
+    {
+        
+    }
+
+    private void SetResizeBounds(float minWidth, float minHeight, float? maxWidth, float? maxHeight)
+    {
+        
+    }
+
+    private void SetVertexColor(float colorR, float colorG, float colorB, float? colorA)
+    {
+        
+    }
+
+    private void SetScale(float scale)
+    {
+        
+    }
+
+    private void ClearAllPoints()
+    {
+        
+    }
+
+    private void SetFrameLevel(int level)
+    {
+        
+    }
+
+    private double GetEffectiveScale()
+    {
+        return 1.0f;
+    }
+
+    private double GetHeight()
+    {
+        return _height;
+    }
+
+    private int GetFrameLevel()
+    {
+        return 1;
+    }
+
+    private void SetAlpha(float alpha)
+    {
+        
+    }
+
+    private void SetClipsChildren(bool clips)
+    {
+        
+    }
+
+    private void SetUserPlaced(bool placed)
+    {
+        
+    }
+
+    private void RegisterForClicks(string[] toArray)
+    {
+        
+    }
+
+    private bool SetFont(string? fontFile, int height, string? flags)
+    {
+        // EditBox has this
+        return true;
+    }
+
+    private void SetText(string text)
+    {
+        // EditBox has this
+    }
+
+    private void SetAutoFocus(bool autoFocus)
+    {
+        // EditBox has this
+    }
+
+    private void SetMaxLetters(int maxLetters)
+    {
+        // EditBox has this
+    }
+
+    private void SetParent(Frame? parent)
+    {
+        this._parent = parent;
+    }
+
+    private List<Frame> GetChildren()
+    {
+        return new List<Frame>();
+    }
+
+    private Frame GetParent()
+    {
+        return this._parent!;
+    }
+    
+    public Line CreateLine(string? name, string? drawLayer, string? templateName, int subLevel)
+    {
+        var line = new Line(_luaState, name, drawLayer, templateName, subLevel);
+        _lines.Add(line);
+        return line;
+    }
+
 }

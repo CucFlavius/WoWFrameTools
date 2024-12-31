@@ -46,4 +46,34 @@ public partial class Texture
     public void SetVertexOffset(int vertexIndex, float offsetX, float offsetY)
     {
     }
+    
+    private void SetTexture(int fileID, string? wrapModeHorizontal, string? wrapModeVertical, string? filterMode)
+    {
+
+    }
+
+    private void SetTexture(string? filePath, string? wrapModeHorizontal, string? wrapModeVertical, string? filterMode)
+    {
+
+    }
+
+    private void SetTexCoord(float left, float right, float top, float bottom)
+    {
+
+    }
+
+    private void SetTexCoord(float uLx, float uLy, float lLx, float lLy, float uRx, float uRy, float lRx, float lRy)
+    {
+ 
+    }
+
+    private void SetVertexColor(float colorR, float colorG, float colorB, float? colorA)
+    {
+        
+    }
+
+    private void SetRotation(float radians, string? normalizedRotationPoint)
+    {
+        
+    }
 }

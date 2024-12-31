@@ -142,4 +142,9 @@ public static class Log
     {
         AnsiConsole.MarkupLine($"[yellow]Warning: {p0}[/]");
     }
+
+    public static void CreateLine(Line line)
+    {
+        AnsiConsole.MarkupLine($"[green]Created Line {line}[/]");
+    }
 }

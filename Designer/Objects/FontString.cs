@@ -52,4 +52,30 @@ public partial class FontString
     private void SetAllPoints(Frame? relativeToFrame, bool doResize)
     {
     }
+
+    private void ClearAllPoints()
+    {
+        
+    }
+
+    private void Hide()
+    {
+        
+    }
+
+    private float GetStringWidth()
+    {
+        return 1.0f;
+    }
+
+    private void SetSize(float width, float height)
+    {
+        // I'm guessing this sets it on the parent frame??
+        // AddOns\scenemachine\src\animationManager.lua:892:
+    }
+
+    private void SetTextColor(float colorR, float colorG, float colorB, float colorA)
+    {
+        
+    }
 }

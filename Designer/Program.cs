@@ -27,6 +27,7 @@ internal class Program
         Frame.RegisterMetaTable(L);
         FontString.RegisterMetatable(L);
         Texture.RegisterMetaTable(L);
+        Line.RegisterMetatable(L);
         Global.SetToc(toc);
         Global.RegisterBindings(L);
         Global.RegisterSavedVariables(L, toc);

@@ -55,63 +55,86 @@ public partial class Global
         RegisterC_AddOns(L);
         RegisterC_ChatInfo(L);
     }
-
     public static int internal_CreateFrame(lua_State L)
     {
         // Retrieve arguments from Lua (frameType, name, parent, template, id)
-        var frameType = lua_tostring(L, 1) ?? "Frame";
-        var name = lua_tostring(L, 2) ?? "";
+        string? frameType = lua_tostring(L, 1) ?? "Frame";
+        string? name = lua_tostring(L, 2) ?? "";
 
         // Handle the parent frame (if provided)
         Frame? parentFrame = null;
-        if (lua_isnil(L, 3) != 0)
+        if (lua_isnil(L, 3) == 0)
         {
-            var parentUserdataPtr = (IntPtr)lua_touserdata(L, 3);
+            IntPtr parentUserdataPtr = (IntPtr)lua_touserdata(L, 3);
             if (parentUserdataPtr != IntPtr.Zero)
             {
                 if (Frame._frameRegistry.TryGetValue(parentUserdataPtr, out var foundFrame))
+                {
                     parentFrame = foundFrame;
+                }
                 else
+                {
                     throw new ArgumentException("Invalid parent frame specified.");
+                }
             }
-            // TODO: Set to UIParent if parent is nil
-            // parentFrame = UIParent.Instance; // Example
+            else
+            {
+                // TODO: Set to UIParent if parent is nil
+                //parentFrame = UIParent.Instance; // Example implementation
+            }
         }
 
-        var template = lua_tostring(L, 4) ?? "";
-        var id = LuaHelpers.IsNumber(L, 5) ? (int)lua_tonumber(L, 5) : 0;
+        string? template = lua_tostring(L, 4) ?? "";
+        int id = LuaHelpers.IsNumber(L, 5) ? (int)lua_tonumber(L, 5) : 0;
 
         // Create a new Frame instance
-        var frame = new Frame(L, frameType, name, parentFrame, template, id);
+        var frame = frameType switch
+        {
+            "ModelScene" => new ModelScene(L, frameType, name, parentFrame, template, id),
+            _ => new Frame(L, frameType, name, parentFrame, template, id)
+        };
 
         // Allocate a GCHandle to prevent garbage collection
-        var handle = GCHandle.Alloc(frame);
-        var handlePtr = GCHandle.ToIntPtr(handle);
+        GCHandle handle = GCHandle.Alloc(frame);
+        IntPtr handlePtr = GCHandle.ToIntPtr(handle);
 
         // Create userdata with the size of IntPtr
-        var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+        IntPtr frameUserdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
 
         // Write the handlePtr into the userdata memory
-        Marshal.WriteIntPtr(userdataPtr, handlePtr);
+        Marshal.WriteIntPtr(frameUserdataPtr, handlePtr);
 
         // Set the metatable for the userdata
         luaL_getmetatable(L, "FrameMetaTable"); // Ensure FrameMetaTable is set up
         lua_setmetatable(L, -2);
 
         // Add the Frame to the registry for later retrieval
-        Frame._frameRegistry[userdataPtr] = frame;
+        Frame._frameRegistry[frameUserdataPtr] = frame;
 
         // Assign the userdataPtr and LuaRegistryRef to the Frame instance
-        frame.UserdataPtr = userdataPtr;
+        frame.UserdataPtr = frameUserdataPtr;
 
         // Create a reference to the userdata in the Lua registry
         lua_pushvalue(L, -1); // Push the userdata
-        var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
+        int refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
         frame.LuaRegistryRef = refIndex;
+
+        // **Proceed to create a Lua table and embed the userdata**
+        // Create a new Lua table
+        lua_newtable(L); // Push a new table onto the stack
+
+        // Set the Frame userdata in the table with a hidden key
+        lua_pushstring(L, "__frame"); // Key
+        lua_pushlightuserdata(L, (UIntPtr)frameUserdataPtr); // Value (light userdata)
+        lua_settable(L, -3); // table["__frame"] = userdata
+
+        // Set the metatable for the table to handle method calls and property accesses
+        luaL_getmetatable(L, "FrameMetaTable"); // Push the FrameMetaTable
+        lua_setmetatable(L, -2); // setmetatable(table, "FrameMetaTable")
 
         Log.CreateFrame(frame);
 
-        return 1; // Number of return values (userdata is returned)
+        return 1; // Return the table
     }
 
     // GetTime function callable from Lua

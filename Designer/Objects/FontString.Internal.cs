@@ -34,6 +34,21 @@ public partial class FontString
 
         lua_pushcfunction(L, internal_SetAllPoints);
         lua_setfield(L, -2, "SetAllPoints");
+        
+        lua_pushcfunction(L, internal_ClearAllPoints);
+        lua_setfield(L, -2, "ClearAllPoints");
+        
+        lua_pushcfunction(L, internal_Hide);
+        lua_setfield(L, -2, "Hide");
+        
+        lua_pushcfunction(L, internal_GetStringWidth);
+        lua_setfield(L, -2, "GetStringWidth");
+        
+        lua_pushcfunction(L, internal_SetSize);
+        lua_setfield(L, -2, "SetSize");
+        
+        lua_pushcfunction(L, internal_SetTextColor);
+        lua_setfield(L, -2, "SetTextColor");
 
         // Set __gc metamethod to handle garbage collection
         lua_pushcfunction(L, internal_FontStringGC);
@@ -304,5 +319,130 @@ public partial class FontString
 
         lua_pushboolean(L, 1);
         return 1; // Return true
+    }
+    
+    public static int internal_ClearAllPoints(lua_State L)
+    {
+        var fontString = GetFontString(L, 1);
+
+        fontString?.ClearAllPoints();
+
+        return 0;
+    }
+    
+    public static int internal_Hide(lua_State L)
+    {
+        var fontString = GetFontString(L, 1);
+
+        fontString?.Hide();
+
+        return 0;
+    }
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_FontString_GetStringWidth
+    /// stringWidth = fontString:GetStringWidth()
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int internal_GetStringWidth(lua_State L)
+    {
+        var fontString = GetFontString(L, 1);
+
+        var width = fontString?.GetStringWidth() ?? 1.0f;
+
+        lua_pushnumber(L, width);
+        return 1;
+    }
+    
+    /// <summary>
+    ///     Sets the size of the Frame.
+    /// </summary>
+    /// <param name="L">The Lua state.</param>
+    /// <returns>Number of return values (0).</returns>
+    public static int internal_SetSize(lua_State L)
+    {
+        lock (Global._luaLock)
+        {
+            try
+            {
+                // Ensure there are exactly 3 arguments: frame, width, height
+                var argc = lua_gettop(L);
+                if (argc != 3)
+                {
+                    lua_pushstring(L, "SetSize requires exactly 3 arguments: frame, width, height.");
+                    lua_error(L);
+                    return 0; // Unreachable
+                }
+
+                // Retrieve the Frame object
+                var frame = GetFontString(L, 1);
+                if (frame == null)
+                {
+                    lua_pushstring(L, "SetSize: Invalid Frame object.");
+                    lua_error(L);
+                    return 0; // Unreachable
+                }
+
+                // Retrieve width and height
+                if (!LuaHelpers.IsNumber(L, 2) || !LuaHelpers.IsNumber(L, 3))
+                {
+                    lua_pushstring(L, "SetSize: 'width' and 'height' must be numbers.");
+                    lua_error(L);
+                    return 0; // Unreachable
+                }
+
+                var width = (float)lua_tonumber(L, 2);
+                var height = (float)lua_tonumber(L, 3);
+
+                // Set the size
+                frame.SetSize(width, height);
+
+                // Log the action
+                //AnsiConsole.WriteLine($"SetSize called on Frame. Width: {width}, Height: {height}");
+
+                // No return values
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                // Log the exception
+                AnsiConsole.WriteException(ex);
+
+                // Raise a Lua error
+                lua_pushstring(L, "SetSize encountered an error.");
+                lua_error(L);
+                return 0; // Unreachable
+            }
+        }
+    }
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_FontInstance_SetTextColor
+    /// Font:SetTextColor(colorR, colorG, colorB [, a])
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int internal_SetTextColor(lua_State L)
+    {
+        var fontString = GetFontString(L, 1);
+
+        var argc = lua_gettop(L);
+        if (argc < 3)
+        {
+            lua_pushstring(L, "SetTextColor requires at least 3 arguments: colorR, colorG, colorB.");
+            lua_error(L);
+            return 0; // Unreachable
+        }
+
+        var colorR = (float)lua_tonumber(L, 2);
+        var colorG = (float)lua_tonumber(L, 3);
+        var colorB = (float)lua_tonumber(L, 4);
+        var colorA = argc == 5 ? (float)lua_tonumber(L, 5) : 1.0f;
+
+        fontString?.SetTextColor(colorR, colorG, colorB, colorA);
+
+        lua_pushboolean(L, 1);
+        return 1;
     }
 }
