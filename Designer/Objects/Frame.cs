@@ -13,6 +13,7 @@ public partial class Frame
     private readonly string? _name;
     private readonly int _id;
     private Frame? _parent;
+    private List<Frame?> _children;
     private readonly HashSet<string> _registeredEvents;
 
     // Dictionary to store script type names and their Lua references
@@ -31,8 +32,18 @@ public partial class Frame
     private string? _strata;
     private float _width;
     private bool _visible;
+    private List<string> _registeredButtons;
 
-    public Frame(lua_State luaState)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="luaState">Lua State</param>
+    /// <param name="frameType">Frame Type</param>
+    /// <param name="name">Name</param>
+    /// <param name="parent">Parent</param>
+    /// <param name="template">Template</param>
+    /// <param name="id">ID</param>
+    public Frame(lua_State luaState, string? frameType, string? name = null, Frame? parent = null, string? template = null, int id = 0)
     {
         _luaState = luaState;
         _scripts = new Dictionary<string, List<ScriptHandler>?>();
@@ -43,20 +54,20 @@ public partial class Frame
         _textures = [];
         _fontStrings = [];
         _lines = [];
-    }
+        _children = [];
+        _registeredButtons = [];
 
-    public Frame(lua_State luaState, string? frameType, string? name, Frame? parent, string? template, int id)
-    {
-        _luaState = luaState;
-        _scripts = new Dictionary<string, List<ScriptHandler>?>();
-        _scriptRefs = new Dictionary<string, int>();
-        _registeredEvents = [];
-        _visible = true; // Frames are visible by default
-        LuaRegistryRef = -1; // Initialize to invalid reference
-        _textures = [];
-        _fontStrings = [];
-        _lines = [];
+        if (name == null)
+        {
+            // Generate random number
+            var random = new Random();
+            name = $"Frame_{random.Next(1000000, 9999999)}";
+        }
 
+        parent ??= Global.UIParent;
+        
+        parent?._children.Add(this);
+        
         _frameType = frameType;
         _name = name;
         _parent = parent;
@@ -210,7 +221,7 @@ public partial class Frame
 
     public Texture CreateTexture(string? name, string? drawLayer, string? templateName, int subLevel)
     {
-        var texture = new Texture(_luaState, name, drawLayer, templateName, subLevel);
+        var texture = new Texture(this, _luaState, name, drawLayer, templateName, subLevel);
         _textures.Add(texture);
         return texture;
     }
@@ -256,8 +267,8 @@ public partial class Frame
     {
         foreach (var button in buttons)
             if (!string.IsNullOrEmpty(button))
-                //registeredButtons.Add(button);
-                Console.WriteLine($"Registered button: {button}");
+                _registeredButtons.Add(button);
+                //Console.WriteLine($"Registered button: {button}");
     }
 
     private void SetNormalTexture(Texture texture, string? blendMode)
@@ -427,12 +438,13 @@ public partial class Frame
 
     private void SetParent(Frame? parent)
     {
-        this._parent = parent;
+        _parent = parent;
+        _parent._children.Add(this);
     }
 
     private List<Frame> GetChildren()
     {
-        return new List<Frame>();
+        return this._children!;
     }
 
     private Frame GetParent()
@@ -467,5 +479,10 @@ public partial class Frame
 
     private void SetPushedTexture(int fileID, string? blendMode)
     {
+    }
+
+    private void SetEnabled(bool enabled)
+    {
+        // EditBox has this
     }
 }

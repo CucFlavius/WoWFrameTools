@@ -1,4 +1,5 @@
 ﻿using System.Xml;
+using LuaNET.Lua51;
 using Spectre.Console;
 using static LuaNET.Lua51.Lua;
 
@@ -23,7 +24,7 @@ internal class Program
 
         var L = luaL_newstate();
         luaL_openlibs(L);
-        luaL_dofile(L, "Compat.lua");
+        ProcessLuaFile(L, "Compat.lua", "");
         Frame.RegisterMetaTable(L);
         FontString.RegisterMetatable(L);
         Texture.RegisterMetaTable(L);
@@ -31,53 +32,22 @@ internal class Program
         Global.SetToc(toc);
         Global.RegisterBindings(L);
         Global.RegisterSavedVariables(L, toc);
-        luaL_dofile(L, "hooksecurefunc.lua");
-
+        ProcessLuaFile(L, "hooksecurefunc.lua", "");
+        
         foreach (var luaFile in luaFiles)
         {
             // get path relative to addonPath
             var relativePath = Path.GetRelativePath(addonPath, luaFile);
 
-            try
-            {
-                var status = luaL_dofile(L, luaFile);
-                if (status != 0)
-                {
-                    AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
-                    AnsiConsole.MarkupLine($"[red]Error in file:[/] {relativePath}");
-                    AnsiConsole.MarkupLine($"[red]{lua_tostring(L, -1)}[/]");
-                    AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
-                    lua_pop(L, 1);
-                    break;
-                }
-
-                Log.ProcessFile(relativePath);
-            }
-            catch (Exception e)
-            {
-                AnsiConsole.WriteException(e);
-                throw;
-            }
+            if (ProcessLuaFile(L, luaFile, relativePath)) break;
         }
-
+        
         // Start the events
         // https://warcraft.wiki.gg/wiki/AddOn_loading_process
         Global.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
         Global.TriggerEvent(L, "PLAYER_LOGIN");
         Global.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
-
-        // TEMP : Open the addon's main frame
-        //AnsiConsole.MarkupLine("[yellow]-------------------------------------------[/]");
-        //var success = luaL_dostring(L, "print(SceneMachine.mainWindow)");
-        //var success = luaL_dostring(L, "SceneMachine.Start();");
-        //var success = luaL_dostring(L, "SceneMachine.Editor.Toggle()");
-        //if (success != 0)
-        //{
-        //    AnsiConsole.WriteLine($"{lua_tostring(L, -1)}");
-        //    lua_pop(L, 1);
-        //}
-        //AnsiConsole.MarkupLine("[yellow]-------------------------------------------[/]");
-
+        
         // Save the saved variables
         Global.SaveSavedVariables(L, toc);
 
@@ -85,6 +55,32 @@ internal class Program
         lua_close(L);
 
         AnsiConsole.WriteLine("Lua state closed. Application exiting.");
+    }
+
+    private static bool ProcessLuaFile(lua_State L, string luaFile, string relativePath)
+    {
+        try
+        {
+            var status = luaL_dofile(L, luaFile);
+            if (status != 0)
+            {
+                AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
+                AnsiConsole.MarkupLine($"[red]Error in file:[/] {relativePath}");
+                AnsiConsole.MarkupLine($"[red]{lua_tostring(L, -1)}[/]");
+                AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
+                lua_pop(L, 1);
+                return true;
+            }
+
+            Log.ProcessFile(relativePath);
+        }
+        catch (Exception e)
+        {
+            AnsiConsole.WriteException(e);
+            throw;
+        }
+
+        return false;
     }
 
     private static async Task ProcessFileRecursive(string filePath, string addonPath, List<string> luaFiles, bool log = false)

@@ -5,9 +5,11 @@ namespace WoWFrameTools;
 public partial class Texture
 {
     private readonly lua_State _luaState;
+    private readonly Frame _parent;
 
-    public Texture(lua_State luaState, string? name, string? drawLayer, string? templateName, int subLevel)
+    public Texture(Frame parent, lua_State luaState, string? name, string? drawLayer, string? templateName, int subLevel)
     {
+        _parent = parent;
         _luaState = luaState;
         _name = name;
         _drawLayer = drawLayer;
@@ -15,8 +17,9 @@ public partial class Texture
         _subLevel = subLevel;
     }
 
-    protected Texture()
+    protected Texture(Frame parent)
     {
+        _parent = parent;
     }
 
     // Property to store userdata pointer
@@ -90,5 +93,10 @@ public partial class Texture
     private int[] GetVertexColor()
     {
         return [1, 1, 1, 1];
+    }
+
+    private Frame GetParent()
+    {
+        return _parent;
     }
 }

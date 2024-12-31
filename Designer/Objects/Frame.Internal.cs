@@ -165,11 +165,19 @@ public partial class Frame
         RegisterFrameMethod(L, "CreateLine", internal_CreateLine);
         RegisterFrameMethod(L, "SetFixedFrameStrata", internal_SetFixedFrameStrata);
         RegisterFrameMethod(L, "SetFixedFrameLevel", internal_SetFixedFrameLevel);
+        RegisterFrameMethod(L, "SetEnabled", internal_SetEnabled);
         
         
         // ModelScene
         RegisterFrameMethod(L, "SetCameraPosition", ModelScene.internal_SetCameraPosition);
         RegisterFrameMethod(L, "SetCameraOrientationByYawPitchRoll", ModelScene.internal_SetCameraOrientationByYawPitchRoll);
+        RegisterFrameMethod(L, "SetLightAmbientColor", ModelScene.internal_SetLightAmbientColor);
+        RegisterFrameMethod(L, "SetLightDiffuseColor", ModelScene.internal_SetLightDiffuseColor);
+        RegisterFrameMethod(L, "SetLightVisible", ModelScene.internal_SetLightVisible);
+        RegisterFrameMethod(L, "SetFogColor", ModelScene.internal_SetFogColor);
+        RegisterFrameMethod(L, "SetFogFar", ModelScene.internal_SetFogFar);
+        RegisterFrameMethod(L, "SetFogNear", ModelScene.internal_SetFogNear);
+        RegisterFrameMethod(L, "ClearFog", ModelScene.internal_ClearFog);
 
         // Set the __index table
         lua_settable(L, -3);
@@ -751,26 +759,7 @@ public partial class Frame
             }
         }
     }
-/*
-    public static int internal_FrameGC(lua_State L)
-    {
-        // Retrieve the userdata pointer
-        var userdataPtr = (IntPtr)lua_touserdata(L, 1);
 
-        if (_frameRegistry.TryGetValue(userdataPtr, out var frame))
-        {
-            // Free the GCHandle
-            if (frame.Handle.IsAllocated) frame.Handle.Free();
-
-            // Remove from registry
-            _frameRegistry.Remove(userdataPtr);
-
-            // Perform any additional cleanup if necessary
-        }
-
-        return 0;
-    }
-*/
     /// <summary>
     ///     https://warcraft.wiki.gg/wiki/API_ScriptRegionResizing_SetAllPoints
     ///     ScriptRegionResizing:SetAllPoints([relativeTo, doResize])
@@ -868,14 +857,9 @@ public partial class Frame
     /// </summary>
     /// <param name="L"></param>
     /// <returns></returns>
- // Implement internal_CreateTexture
+
     public static int internal_CreateTexture(lua_State L)
     {
-        // Stack:
-        // 1 - table
-        // 2 - name
-        // 3 - layer
-
         // Retrieve the table
         if (lua_istable(L, 1) == 0)
         {
@@ -927,7 +911,7 @@ public partial class Frame
         Marshal.WriteIntPtr(textureUserdataPtr, handlePtr);
 
         // Set the metatable for the userdata
-        luaL_getmetatable(L, "TextureMetaTable"); // Ensure FrameMetaTable is set up
+        luaL_getmetatable(L, "TextureMetaTable"); // Ensure TextureMetaTable is set up
         lua_setmetatable(L, -2);
 
         // Add the Frame to the registry for later retrieval
@@ -948,18 +932,17 @@ public partial class Frame
         // Set the Frame userdata in the table with a hidden key
         lua_pushstring(L, "__texture"); // Key
         lua_pushlightuserdata(L, (UIntPtr)textureUserdataPtr); // Value (light userdata)
-        lua_settable(L, -3); // table["__frame"] = userdata
+        lua_settable(L, -3); // table["__texture"] = userdata
 
         // Set the metatable for the table to handle method calls and property accesses
-        luaL_getmetatable(L, "TextureMetaTable"); // Push the FrameMetaTable
-        lua_setmetatable(L, -2); // setmetatable(table, "FrameMetaTable")
+        luaL_getmetatable(L, "TextureMetaTable"); // Push the TextureMetaTable
+        lua_setmetatable(L, -2); // setmetatable(table, "TextureMetaTable")
 
         Log.CreateTexture(texture);
 
         return 1; // Return the table
     }
-
-
+    
     /// <summary>
     ///     https://warcraft.wiki.gg/wiki/API_Frame_CreateFontString
     ///     line = Frame:CreateFontString([name, drawLayer, templateName])
@@ -1546,34 +1529,20 @@ public partial class Frame
     
     public static int internal_GetChildren(lua_State L)
     {
-        // 1) Get the C# Frame instance
         var frame = GetFrame(L, 1);
-        if (frame == null)
-        {
-            return 0; // No valid frame -> no return values
-        }
-
-        // 2) Get its children
-        var children = frame.GetChildren(); // e.g. returns List<Frame> or similar
+        var children = frame?.GetChildren(); // e.g. List<Frame>
         if (children == null || children.Count == 0)
         {
-            return 0; // No children -> no return values
+            return 0; // Return no values
         }
 
-        // 3) Push each child as a separate return
         int count = 0;
         foreach (var child in children)
         {
-            if (child == null) continue;
-
-            // Push the child's existing Lua object/table/userdata
-            // so that Lua sees it as a proper "Frame". For example:
+            // child -> push
             PushExistingFrameToLua(L, child);
-
             count++;
         }
-
-        // 4) Return the number of values
         return count;
     }
 
@@ -1583,10 +1552,7 @@ public partial class Frame
     /// </summary>
     public static void PushExistingFrameToLua(lua_State L, Frame child)
     {
-        // If you're storing the table in child.LuaRegistryRef, do:
         lua_rawgeti(L, LUA_REGISTRYINDEX, child.LuaRegistryRef);
-        // Now the child's table/userdata is on top of the stack.
-        // If child has no registry ref, you might need to create one or log an error.
     }
     
     public static int internal_GetParent(lua_State L)
@@ -1706,6 +1672,16 @@ public partial class Frame
         
         frame?.SetFixedFrameLevel(isFixed);
         
+        return 0;
+    }
+    
+    public static int internal_SetEnabled(lua_State L)
+    {
+        var frame = GetFrame(L, 1);
+        var enabled = lua_toboolean(L, 2) != 0;
+
+        frame?.SetEnabled(enabled);
+
         return 0;
     }
 }

@@ -12,6 +12,7 @@ public partial class Global
     private static readonly object _prefixLock = new();
     private static readonly HashSet<string> _registeredPrefixes = new();
     private static readonly Dictionary<string, string> _slashCommands = new();
+    public static Frame? UIParent;
 
     public static void SetToc(Toc toc)
     {
@@ -83,58 +84,63 @@ public partial class Global
         }
     }
 
-    public static void InitializeMinimap(lua_State L)
+    public static void InitializeUIParent(lua_State L)
     {
-        // Create a new Frame instance for Minimap
-        var minimap = new Frame(L);
+        UIParent = new Frame(L, "Frame", "UIParent", null, null, 0);
 
-        // Allocate a GCHandle to prevent the Frame from being garbage collected
-        var handle = GCHandle.Alloc(minimap);
+        // GCHandle + Userdata
+        var handle = GCHandle.Alloc(UIParent);
         var handlePtr = GCHandle.ToIntPtr(handle);
 
-        // Create userdata with the size of IntPtr
         var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
-
-        // Write the handlePtr into the userdata memory
         Marshal.WriteIntPtr(userdataPtr, handlePtr);
 
-        // Set the metatable for the userdata
         luaL_getmetatable(L, "FrameMetaTable");
         lua_setmetatable(L, -2);
 
-        // Add the Frame to the registry for later retrieval
-        Frame._frameRegistry[userdataPtr] = minimap;
+        Frame._frameRegistry[userdataPtr] = UIParent;
+        UIParent.UserdataPtr = userdataPtr;
 
-        // Assign the userdataPtr and LuaRegistryRef to the Frame instance
+        lua_pushvalue(L, -1);
+        var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
+        UIParent.LuaRegistryRef = refIndex;
+
+        // Now the new userdata for UIParent is on top of the stack
+        lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex);
+        lua_setglobal(L, "UIParent");
+    }
+    
+    public static void InitializeMinimap(lua_State L)
+    {
+        // Create a new Frame instance for Minimap
+        var minimap = new Frame(L, "Frame", "Minimap", UIParent, null, 0);
+
+        // GCHandle + Userdata
+        var handle = GCHandle.Alloc(minimap);
+        var handlePtr = GCHandle.ToIntPtr(handle);
+
+        var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+        Marshal.WriteIntPtr(userdataPtr, handlePtr);
+
+        luaL_getmetatable(L, "FrameMetaTable");
+        lua_setmetatable(L, -2);
+
+        Frame._frameRegistry[userdataPtr] = minimap;
         minimap.UserdataPtr = userdataPtr;
 
-        // Create a reference to the userdata in the registry
-        lua_pushvalue(L, -1); // Push the userdata onto the stack
+        lua_pushvalue(L, -1);
         var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
         minimap.LuaRegistryRef = refIndex;
 
-        // Set the Minimap as a global variable in Lua
-        lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex); // Push the userdata
+        // set global "Minimap"
+        lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex);
         lua_setglobal(L, "Minimap");
     }
-
-    // Add the following method to initialize SlashCmdList
+    
     public static void InitializeSlashCmdList(lua_State L)
     {
-        lock (_luaLock)
-        {
-            try
-            {
-                lua_newtable(L); // Create a new table
-                lua_setglobal(L, "SlashCmdList"); // Set it as the global 'SlashCmdList'
-
-                //AnsiConsole.WriteLine("SlashCmdList table initialized.");
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.WriteException(ex);
-            }
-        }
+        lua_newtable(L); // Creates a new table
+        lua_setglobal(L, "SlashCmdList");
     }
 
     private static void RegisterC_AddOns(lua_State L)
