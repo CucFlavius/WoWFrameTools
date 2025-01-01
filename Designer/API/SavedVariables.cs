@@ -1,15 +1,14 @@
 ﻿using LuaNET.Lua51;
 using Spectre.Console;
+using static LuaNET.Lua51.Lua;
 
-namespace WoWFrameTools;
+namespace WoWFrameTools.API;
 
-using static Lua;
-
-public partial class Global
+public static class SavedVariables
 {
     public static void RegisterSavedVariables(lua_State luaState, Toc toc)
     {
-        lock (_luaLock)
+        lock (API._luaLock)
         {
             try
             {
@@ -77,7 +76,7 @@ public partial class Global
 
     public static void SaveSavedVariables(lua_State luaState, Toc toc)
     {
-        lock (_luaLock)
+        lock (API._luaLock)
         {
             try
             {

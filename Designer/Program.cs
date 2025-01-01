@@ -1,6 +1,8 @@
 ﻿using System.Xml;
 using LuaNET.Lua51;
 using Spectre.Console;
+using WoWFrameTools.API;
+using WoWFrameTools.Widgets;
 using static LuaNET.Lua51.Lua;
 
 namespace WoWFrameTools;
@@ -9,13 +11,11 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        var addonPath = "D:\\Games\\World of Warcraft\\_retail_\\Interface\\AddOns\\scenemachine";
+        const string addonPath = @"D:\Games\World of Warcraft\_retail_\Interface\AddOns\scenemachine";
         var tocPath = Path.Combine(addonPath, "scenemachine.toc");
-        var toc = new Toc(tocPath);
-        //AnsiConsole.MarkupLine($"[purple]{tocPath} -> [/]");
+        var toc = API.API.LoadToc(tocPath);
 
         var luaFiles = new List<string>();
-
         foreach (var codePath in toc.CodePaths)
         {
             var absolutePath = Path.GetFullPath(Path.Combine(addonPath, codePath));
@@ -25,13 +25,53 @@ internal class Program
         var L = luaL_newstate();
         luaL_openlibs(L);
         ProcessLuaFile(L, "Compat.lua", "");
-        Frame.RegisterMetaTable(L);
-        FontString.RegisterMetatable(L);
-        Texture.RegisterMetaTable(L);
-        Line.RegisterMetatable(L);
-        Global.SetToc(toc);
-        Global.RegisterBindings(L);
-        Global.RegisterSavedVariables(L, toc);
+
+        new Frame().RegisterMetaTable(L);
+        new Texture().RegisterMetaTable(L);
+        new FontString().RegisterMetaTable(L);
+        new Button().RegisterMetaTable(L);
+        new EditBox().RegisterMetaTable(L);
+        new Line().RegisterMetaTable(L);
+        
+        LuaHelpers.RegisterGlobalMethod(L, "CreateFrame", UIObjects.CreateFrame);
+        LuaHelpers.RegisterGlobalMethod(L, "GetTime", Game.GetTime);
+        LuaHelpers.RegisterGlobalMethod(L, "GetLocale", Game.GetLocale);
+        LuaHelpers.RegisterGlobalMethod(L, "SendChatMessage", Game.SendChatMessage);
+        LuaHelpers.RegisterGlobalMethod(L, "SendAddonMessage", Game.SendAddonMessage);
+        LuaHelpers.RegisterGlobalMethod(L, "print", API.API.Print);
+        LuaHelpers.RegisterGlobalMethod(L, "IsLoggedIn", API.API.IsLoggedIn);
+        C_Addons.Register(L);
+        C_ChatInfo.Register(L);
+        C_CVar.Register(L);
+        SlashCmdList.Register(L);
+
+        ////////////////////
+        // Run some tests //
+        // var success = luaL_dostring(L, "C_ChatInfo.RegisterAddonMessagePrefix(\"TEST\");");
+        // if (success != 0)
+        // {
+        //     AnsiConsole.WriteLine($"{lua_tostring(L, -1)}");
+        //     lua_pop(L, 1);
+        // }
+        // var success = luaL_dofile(L, "test.lua");
+        // if (success != 0)
+        // {
+        //     AnsiConsole.WriteLine($"{lua_tostring(L, -1)}");
+        //     lua_pop(L, 1);
+        // }
+        //
+        // return;
+        ////////////////////
+        
+        UIObjects.UIParent = new Widgets.Frame("Frame", "UIParent", null, null, 0);
+        UIObjects.UIParent.RegisterMetaTable(L);
+        UIObjects.CreateGlobalFrame(L, UIObjects.UIParent);
+        
+        UIObjects.Minimap = new Minimap("Minimap", "Minimap", UIObjects.UIParent, null, 0);
+        UIObjects.Minimap.RegisterMetaTable(L);
+        UIObjects.CreateGlobalFrame(L, UIObjects.Minimap);
+        
+        SavedVariables.RegisterSavedVariables(L, toc);
         ProcessLuaFile(L, "hooksecurefunc.lua", "");
         
         foreach (var luaFile in luaFiles)
@@ -44,12 +84,12 @@ internal class Program
         
         // Start the events
         // https://warcraft.wiki.gg/wiki/AddOn_loading_process
-        Global.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
-        Global.TriggerEvent(L, "PLAYER_LOGIN");
-        Global.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
+        API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
+        API.API.TriggerEvent(L, "PLAYER_LOGIN");
+        API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
         
         // Save the saved variables
-        Global.SaveSavedVariables(L, toc);
+        SavedVariables.SaveSavedVariables(L, toc);
 
         // Close Lua state
         lua_close(L);
@@ -61,26 +101,43 @@ internal class Program
     {
         try
         {
-            var status = luaL_dofile(L, luaFile);
-            if (status != 0)
+            // 1) Load the file
+            int loadStatus = luaL_loadfile(L, luaFile);
+            if (loadStatus != 0)
             {
-                AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
-                AnsiConsole.MarkupLine($"[red]Error in file:[/] {relativePath}");
-                AnsiConsole.MarkupLine($"[red]{lua_tostring(L, -1)}[/]");
-                AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
-                lua_pop(L, 1);
-                return true;
+                // There's a syntax error or file not found, etc.
+                string loadErr = lua_tostring(L, -1);
+                AnsiConsole.MarkupLine("[red]Error loading file:[/] " + relativePath);
+                AnsiConsole.MarkupLine($"[red]{loadErr}[/]");
+                lua_pop(L, 1); // pop the error message
+                return true;    // or handle error
             }
 
+            // 2) Now do a protected call
+            int pcallStatus = lua_pcall(L, 0, LUA_MULTRET, 0);
+            if (pcallStatus != 0)
+            {
+                // Now we can read the actual error message from the top of the stack
+                string errorMsg = lua_tostring(L, -1);
+                AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
+                AnsiConsole.MarkupLine($"[red]Error in file:[/] {relativePath}");
+                AnsiConsole.MarkupLine($"[red]{errorMsg}[/]");
+                AnsiConsole.MarkupLine("[red]-------------------------------------------[/]");
+                lua_pop(L, 1); // pop the error message
+                return true;    // or handle error
+            }
+
+            // success
             Log.ProcessFile(relativePath);
+            return false; // no error
+
         }
         catch (Exception e)
         {
+            Log.Error("Error processing file: " + relativePath);
             AnsiConsole.WriteException(e);
-            throw;
+            return false;
         }
-
-        return false;
     }
 
     private static async Task ProcessFileRecursive(string filePath, string addonPath, List<string> luaFiles, bool log = false)

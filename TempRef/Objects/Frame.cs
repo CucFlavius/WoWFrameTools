@@ -3,7 +3,7 @@ using LuaNET.Lua51;
 
 namespace WoWFrameTools;
 
-public delegate void ScriptHandler(Frame frame, string eventName, string? extraParam = null);
+//public delegate void ScriptHandler(Frame frame, string eventName, string? extraParam = null);
 
 public partial class Frame
 {
@@ -18,7 +18,7 @@ public partial class Frame
 
     // Dictionary to store script type names and their Lua references
     public readonly Dictionary<string, int> _scriptRefs;
-    private readonly Dictionary<string, List<ScriptHandler>?> _scripts;
+    private readonly Dictionary<string, List<Widgets.ScriptHandler>?> _scripts;
     public Dictionary<string, object?> Properties { get; private set; } = new Dictionary<string, object?>();
     private readonly string? _template;
     private readonly List<Texture> _textures;
@@ -32,7 +32,6 @@ public partial class Frame
     private string? _strata;
     private float _width;
     private bool _visible;
-    private List<string> _registeredButtons;
 
     /// <summary>
     /// 
@@ -46,7 +45,7 @@ public partial class Frame
     public Frame(lua_State luaState, string? frameType, string? name = null, Frame? parent = null, string? template = null, int id = 0)
     {
         _luaState = luaState;
-        _scripts = new Dictionary<string, List<ScriptHandler>?>();
+        _scripts = new Dictionary<string, List<Widgets.ScriptHandler>?>();
         _scriptRefs = new Dictionary<string, int>();
         _registeredEvents = [];
         _visible = true; // Frames are visible by default
@@ -93,7 +92,7 @@ public partial class Frame
         return true;
     }
 
-    public void SetScript(string scriptTypeName, ScriptHandler script, int? refIndex = null)
+    public void SetScript(string scriptTypeName, Widgets.ScriptHandler script, int? refIndex = null)
     {
         if (!_scripts.ContainsKey(scriptTypeName)) _scripts[scriptTypeName] = [];
 
@@ -104,7 +103,7 @@ public partial class Frame
             _scripts[scriptTypeName]?.Add(script);
     }
 
-    public void HookScript(string scriptTypeName, ScriptHandler script, int refIndex)
+    public void HookScript(string scriptTypeName, Widgets.ScriptHandler script, int refIndex)
     {
         if (!_scripts.ContainsKey(scriptTypeName)) _scripts[scriptTypeName] = [];
 
@@ -121,10 +120,10 @@ public partial class Frame
             // Make a copy to prevent modification during iteration
             if (eventHandlers != null)
             {
-                var handlersCopy = new List<ScriptHandler>(eventHandlers);
-                foreach (var handler in handlersCopy)
+                var handlersCopy = new List<Widgets.ScriptHandler>(eventHandlers);
+                //foreach (var handler in handlersCopy)
                     //AnsiConsole.MarkupLine($"[yellow]Invoking OnEvent handler for event '{eventName}'[/]");
-                    handler(this, eventName, param);
+                    //handler(this, eventName, param);
             }
 
         switch (eventName)
@@ -134,8 +133,8 @@ public partial class Frame
             {
                 if (showHandlers != null)
                 {
-                    var handlersCopy = new List<ScriptHandler>(showHandlers);
-                    foreach (var handler in handlersCopy) handler(this, eventName, param);
+                    var handlersCopy = new List<Widgets.ScriptHandler>(showHandlers);
+                    //foreach (var handler in handlersCopy) handler(this, eventName, param);
                 }
 
                 break;
@@ -145,8 +144,8 @@ public partial class Frame
             {
                 if (hideHandlers != null)
                 {
-                    var handlersCopy = new List<ScriptHandler>(hideHandlers);
-                    foreach (var handler in handlersCopy) handler(this, eventName, param);
+                    var handlersCopy = new List<Widgets.ScriptHandler>(hideHandlers);
+                    //foreach (var handler in handlersCopy) handler(this, eventName, param);
                 }
 
                 break;
@@ -263,14 +262,6 @@ public partial class Frame
     {
     }
 
-    public void RegisterForDrag(params string[] buttons)
-    {
-        foreach (var button in buttons)
-            if (!string.IsNullOrEmpty(button))
-                _registeredButtons.Add(button);
-                //Console.WriteLine($"Registered button: {button}");
-    }
-
     private void SetNormalTexture(Texture texture, string? blendMode)
     {
     }
@@ -375,10 +366,7 @@ public partial class Frame
         
     }
 
-    private void SetFrameLevel(int level)
-    {
-        
-    }
+
 
     private double GetEffectiveScale()
     {
@@ -396,11 +384,6 @@ public partial class Frame
     }
 
     private void SetAlpha(float alpha)
-    {
-        
-    }
-
-    private void SetClipsChildren(bool clips)
     {
         
     }

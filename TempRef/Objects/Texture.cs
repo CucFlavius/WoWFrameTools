@@ -45,10 +45,7 @@ public partial class Texture
     public void SetAllPoints(string? relativeTo, bool doResize)
     {
     }
-
-    public void SetVertexOffset(int vertexIndex, float offsetX, float offsetY)
-    {
-    }
+    
     
     private void SetTexture(int fileID, string? wrapModeHorizontal, string? wrapModeVertical, string? filterMode)
     {

@@ -1,6 +1,8 @@
-﻿using System.Text;
+﻿using System.Runtime.InteropServices;
+using System.Text;
 using LuaNET.Lua51;
 using Spectre.Console;
+using WoWFrameTools.Widgets;
 
 namespace WoWFrameTools;
 
@@ -8,39 +10,6 @@ using static Lua;
 
 public static class LuaHelpers
 {
-    /// <summary>
-    ///     Converts the result of a Lua C API 'is' function to a C# bool.
-    /// </summary>
-    /// <param name="result">The integer result from the Lua function.</param>
-    /// <returns>True if result is non-zero, otherwise false.</returns>
-    private static bool ToBool(int result)
-    {
-        return result != 0;
-    }
-
-    /// <summary>
-    ///     Checks if the value at the given index is a number.
-    /// </summary>
-    /// <param name="L">The Lua state.</param>
-    /// <param name="index">The stack index.</param>
-    /// <returns>True if the value is a number, otherwise false.</returns>
-    public static bool IsNumber(lua_State L, int index)
-    {
-        return ToBool(lua_isnumber(L, index));
-    }
-
-    /// <summary>
-    ///     Checks if the value at the given index is a string.
-    /// </summary>
-    /// <param name="L">The Lua state.</param>
-    /// <param name="index">The stack index.</param>
-    /// <returns>True if the value is a string, otherwise false.</returns>
-    public static bool IsString(lua_State L, int index)
-    {
-        return ToBool(lua_isstring(L, index));
-    }
-
-
     /// <summary>
     ///     Serializes a Lua table represented as a Dictionary
     ///     to Lua table syntax.
@@ -202,7 +171,7 @@ public static class LuaHelpers
             }
             catch (Exception ex)
             {
-                AnsiConsole.WriteLine($"GetTable: Exception while processing key '{key}': {ex.Message}");
+                Log.Error($"GetTable: Exception while processing key '{key}': {ex.Message}");
             }
 
             lua_pop(luaState, 1); // remove value, keep key for next iteration
@@ -219,20 +188,274 @@ public static class LuaHelpers
     /// <returns>A C# object representing the Lua value.</returns>
     private static object GetLuaValue(lua_State luaState, int index, HashSet<IntPtr> visited)
     {
-        if (lua_isnil(luaState, index) != 0) return null;
+        if (lua_isnil(luaState, index) != 0)
+        {
+            return null;
+        }
 
-        if (lua_isboolean(luaState, index) != 0) return lua_toboolean(luaState, index) != 0;
+        if (lua_isboolean(luaState, index) != 0)
+        {
+            return lua_toboolean(luaState, index) != 0;
+        }
 
-        if (lua_isnumber(luaState, index) != 0) return lua_tonumber(luaState, index);
+        if (lua_isnumber(luaState, index) != 0)
+        {
+            return lua_tonumber(luaState, index);
+        }
 
-        if (lua_isstring(luaState, index) != 0) return lua_tostring(luaState, index);
+        if (lua_isstring(luaState, index) != 0)
+        {
+            return lua_tostring(luaState, index);
+        }
 
         if (lua_istable(luaState, index) != 0)
+        {
             // Recursively retrieve nested tables
             return GetTable(luaState, index, visited);
+        }
 
-        // Handle other types like functions, userdata, etc., if necessary
-        AnsiConsole.WriteLine($"GetLuaValue: Unsupported Lua type at index {index}. Skipping.");
+        if (lua_isuserdata(luaState, index) != 0)
+        {
+            // Handle userdata
+            return null;
+            //return GetUserdata(luaState, index);
+        }
+
+        // Handle other types like functions, threads, etc., if necessary
+        int type = lua_type(luaState, index); // Retrieve the type code
+        string typeName = lua_typename(luaState, type); // Get the type name as a string
+
+        AnsiConsole.MarkupLine($"[red]GetLuaValue:[/] Unsupported Lua type '{typeName}' at index {index}. Skipping.");
         return null;
+    }
+
+    private static object? GetUserdata(lua_State luaState, int index)
+    {
+        // Step 1: Retrieve the userdata pointer from Lua
+        IntPtr userdataPtr = (IntPtr)lua_touserdata(luaState, index);
+
+        if (userdataPtr == IntPtr.Zero)
+        {
+            AnsiConsole.MarkupLine($"[red]GetUserdata:[/] Userdata at index {index} is a light userdata with a null pointer.");
+            return null;
+        }
+
+        // Step 2: Look up the C# object in the registry
+        if (API.UIObjects._frameRegistry.TryGetValue(userdataPtr, out var frame))
+        {
+            return frame;
+        }
+        /*
+        else if (API.UIObjects._nameToFrameRegistry.TryGetValue(userdataPtr, out var namedFrame))
+        {
+            return namedFrame;
+        }
+        */
+        // Add additional registries as needed for different userdata types
+
+        // Step 3: Handle unknown userdata types
+        // Optionally, retrieve the metatable to determine the userdata type
+        lua_getmetatable(luaState, index);
+        if (lua_isnil(luaState, -1) == 0)
+        {
+            try
+            {
+                // Assuming the metatable name is stored as a string in the registry
+                // Alternatively, you might have to retrieve specific fields to determine the type
+                lua_pushstring(luaState, "__name"); // Push the key to get the metatable name
+                lua_gettable(luaState, -2); // Get metatable.__name
+                string metaName = "unknown";
+                if (lua_isstring(luaState, -1) != 0)
+                    lua_tostring(luaState, -1);
+                lua_pop(luaState, 2); // Pop the value and the metatable
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        else
+        {
+            lua_pop(luaState, 1); // Pop the nil
+            AnsiConsole.MarkupLine($"[yellow]GetUserdata:[/] Unknown userdata with no metatable at index {index}.");
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Pushes a given FrameScriptObject-derived instance onto the Lua stack 
+    /// as a userdata, setting the appropriate metatable from obj.GetMetatableName().
+    /// 
+    /// If obj is null, pushes nil.
+    /// </summary>
+    public static void PushFrameScriptObject(lua_State L, FrameScriptObject? obj)
+    {
+        // 1) If the object is null, just push nil
+        if (obj == null)
+        {
+            lua_pushnil(L);
+            return;
+        }
+
+        // 2) Allocate a GCHandle to pin 'obj'
+        GCHandle handle = GCHandle.Alloc(obj);
+        IntPtr handlePtr = GCHandle.ToIntPtr(handle);
+
+        // 3) Create a new userdata block large enough for IntPtr
+        // In Lua 5.1, we can do: 
+        IntPtr userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+
+        // 4) Write the handle pointer into that memory
+        Marshal.WriteIntPtr(userdataPtr, handlePtr);
+
+        // 5) Retrieve the class-specific metatable name, e.g. "UIObjectMetaTable" or "ScriptRegionMetaTable"
+        string metaName = obj.GetMetatableName();
+
+        // 6) Get that metatable
+        luaL_getmetatable(L, metaName);
+
+        // 7) Set it as the userdata's metatable
+        // stack: [ ..., userData, metaTable ]
+        lua_setmetatable(L, -2);
+        // stack: [ ..., userData ]
+
+        // Done! userData with the correct metatable is on top of the stack
+        // The caller can now do e.g. 
+        // local scriptObj = ...  -- from C# code
+        // scriptObj:GetName() in Lua, etc.
+    }
+
+    /// <summary>
+    ///     Converts the result of a Lua C API 'is' function to a C# bool.
+    /// </summary>
+    /// <param name="result">The integer result from the Lua function.</param>
+    /// <returns>True if result is non-zero, otherwise false.</returns>
+    private static bool ToBool(int result)
+    {
+        return result != 0;
+    }
+
+    /// <summary>
+    ///     Checks if the value at the given index is a number.
+    /// </summary>
+    /// <param name="L">The Lua state.</param>
+    /// <param name="index">The stack index.</param>
+    /// <returns>True if the value is a number, otherwise false.</returns>
+    public static bool IsNumber(lua_State L, int index)
+    {
+        return ToBool(lua_isnumber(L, index));
+    }
+
+    /// <summary>
+    ///     Checks if the value at the given index is a string.
+    /// </summary>
+    /// <param name="L">The Lua state.</param>
+    /// <param name="index">The stack index.</param>
+    /// <returns>True if the value is a string, otherwise false.</returns>
+    public static bool IsString(lua_State L, int index)
+    {
+        return ToBool(lua_isstring(L, index));
+    }
+
+    public static void RegisterMethod(lua_State L, string methodName, lua_CFunction function)
+    {
+        lua_pushstring(L, methodName);
+        lua_pushcfunction(L, function);
+        lua_settable(L, -3); // metatable.__index[methodName] = function
+    }
+
+    public static void RegisterGlobalMethod(lua_State L, string methodName, lua_CFunction function)
+    {
+        lua_pushcfunction(L, function);
+        lua_setglobal(L, methodName);
+    }
+
+    public static void RegisterGlobalTable(lua_State L, string tableName, Dictionary<string, lua_CFunction>? methods = null)
+    {
+        lua_newtable(L); // Create a new table
+        if (methods != null)
+        {
+            foreach (var (fName, function) in methods)
+            {
+                lua_pushcfunction(L, function);
+                lua_setfield(L, -2, fName); // Set table[fName] = function
+            }
+        }
+
+        lua_setglobal(L, tableName); // Set the table as a global
+    }
+
+    public static Frame? GetFrame(lua_State L, int index)
+    {
+        Frame? relativeTo;
+        if (lua_isuserdata(L, index) != 0)
+        {
+            // Handle userdata parent
+            var parentUserdataPtr = (IntPtr)lua_touserdata(L, index);
+            if (parentUserdataPtr != IntPtr.Zero)
+            {
+                if (!API.UIObjects._frameRegistry.TryGetValue(parentUserdataPtr, out var foundFrame))
+                {
+                    throw new ArgumentException("Invalid frame specified.");
+                }
+
+                relativeTo = foundFrame;
+            }
+            else
+            {
+                throw new ArgumentException("Frame is not userdata.");
+            }
+        }
+        else if (lua_isstring(L, index) != 0)
+        {
+            // Handle string parent (name of the frame)
+            var parentName = lua_tostring(L, index) ?? "";
+            if (string.IsNullOrEmpty(parentName))
+            {
+                throw new ArgumentException("Frame name is empty.");
+            }
+
+            if (!API.UIObjects._nameToFrameRegistry.TryGetValue(parentName, out var namedFrame))
+            {
+                return null;
+                //throw new ArgumentException($"No frame found with the name '{parentName}'.");
+            }
+
+            relativeTo = namedFrame;
+        }
+        else if (lua_isnil(L, index) != 0)
+        {
+            // Parent is nil; default to UIParent if applicable
+            relativeTo = API.UIObjects.UIParent;
+        }
+        else if (lua_istable(L, index) != 0)
+        {
+            // Handle table parent
+            var table = GetTable(L, index);
+            if (table.TryGetValue("__frame", out var frameObj))
+            {
+                relativeTo = frameObj as Frame;
+            }
+            else
+            {
+                throw new ArgumentException("Invalid frame specified.");
+            }
+        }
+        else
+        {
+            throw new ArgumentException("Frame must be userdata, a string, or nil.");
+        }
+
+        return relativeTo;
+    }
+    
+    public static void PushExistingFrameToLua(lua_State L, Frame child)
+    {
+        // If you're storing the table in child.LuaRegistryRef, do:
+        lua_rawgeti(L, LUA_REGISTRYINDEX, child.LuaRegistryRef);
+        // Now the child's table/userdata is on top of the stack.
+        // If child has no registry ref, you might need to create one or log an error.
     }
 }

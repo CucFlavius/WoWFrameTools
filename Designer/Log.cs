@@ -1,10 +1,13 @@
-﻿using Spectre.Console;
+﻿using LuaNET.Lua51;
+using Spectre.Console;
+using WoWFrameTools.Widgets;
+using static LuaNET.Lua51.Lua;
 
 namespace WoWFrameTools;
 
 public static class Log
 {
-    private const bool enableEventTriggerLogging = true;
+    private const bool enableEventTriggerLogging = false;
     private const bool enableEventRegisterLogging = false;
     private const bool enableScriptSetLogging = false;
     private const bool enableEventUnRegisterLogging = false;
@@ -18,6 +21,7 @@ public static class Log
     private const bool enableFrameCreationLogging = false;
     private const bool enableCreateTextureLogging = false;
     private const bool enableCreateFontStringLogging = false;
+    private const bool enableCreateLineLogging = false;
 
     public static void EventTrigger(string eventName, string? param = null, Frame? frame = null)
     {
@@ -38,7 +42,7 @@ public static class Log
         AnsiConsole.MarkupLine($"Registered event: [yellow]'{eventName}'[/] for frame {frame}");
     }
 
-    public static void ScriptSet(string scriptTypeName, Frame frame)
+    public static void ScriptSet(string scriptTypeName, ScriptObject frame)
     {
         if (!enableScriptSetLogging)
             return;
@@ -77,7 +81,7 @@ public static class Log
         AnsiConsole.MarkupLine(logMessage);
     }
 
-    public static void HookScript(string scriptTypeName, Frame frame)
+    public static void HookScript(string scriptTypeName, ScriptObject frame)
     {
         if (!enableHookScriptLogging)
             return;
@@ -92,7 +96,7 @@ public static class Log
         AnsiConsole.WriteLine(toString);
     }
 
-    public static void RemoveScript(string scriptTypeName, Frame frame)
+    public static void RemoveScript(string scriptTypeName, ScriptObject frame)
     {
         if (!enableRemoveScriptLogging)
             return;
@@ -122,13 +126,47 @@ public static class Log
 
         AnsiConsole.MarkupLine(logMessage);
     }
-
-    public static void CreateFontString(FontString fontString)
+    
+    public static void Warn(string p0)
     {
-        if (!enableCreateFontStringLogging)
-            return;
+        AnsiConsole.MarkupLine($"[yellow]Warning: {p0}[/]");
+    }
 
-        AnsiConsole.MarkupLine($"[green]Created FontString {fontString}[/]");
+    public static void HookScript(string scriptTypeName, Frame frame)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static void RemoveScript(string scriptTypeName, Frame frame)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static void ScriptSet(string scriptTypeName, Frame frame)
+    {
+        throw new NotImplementedException();
+    }
+
+    public static void Exception(Exception exception)
+    {
+        AnsiConsole.WriteException(exception);
+    }
+
+    public static void Error(string message)
+    {
+        AnsiConsole.MarkupLine($"[red]Error: {message}[/]");
+    }
+
+    public static void ErrorL(lua_State L, string message)
+    {
+        AnsiConsole.MarkupLine($"[red]Error: {message}[/]");
+        lua_pushstring(L, message);
+        lua_error(L);
+    }
+    
+    public static void Debug(string s)
+    {
+        AnsiConsole.MarkupLine($"[blue]Debug: {s}[/]");
     }
 
     public static void CreateTexture(Texture texture)
@@ -136,16 +174,21 @@ public static class Log
         if (!enableCreateTextureLogging)
             return;
 
-        AnsiConsole.MarkupLine($"[green]Created Texture {texture}[/]");
+        AnsiConsole.MarkupLine($"[green]Created Texture: {texture}[/]");
     }
 
-    public static void Warn(string p0)
+    public static void CreateFontString(FontString fontString)
     {
-        AnsiConsole.MarkupLine($"[yellow]Warning: {p0}[/]");
+        if (!enableCreateFontStringLogging)
+            return;
+
+        AnsiConsole.MarkupLine($"[green]Created FontString: {fontString}[/]");
     }
 
     public static void CreateLine(Line line)
     {
-        //AnsiConsole.MarkupLine($"[green]Created Line {line}[/]");
+        if (!enableCreateLineLogging)
+            return;
+        AnsiConsole.MarkupLine($"[green]Created Line: {line}[/]");
     }
 }

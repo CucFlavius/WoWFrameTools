@@ -64,13 +64,5 @@ public partial class Line
         
     }
 
-    private void SetStartPoint(string? relativePoint, Frame? relativeTo, float offsetX, float offsetY)
-    {
-        
-    }
 
-    private void SetEndPoint(string? relativePoint, Frame? relativeTo, float offsetX, float offsetY)
-    {
-        
-    }
 }
