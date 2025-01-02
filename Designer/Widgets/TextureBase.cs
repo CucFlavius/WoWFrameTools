@@ -142,7 +142,6 @@ public class TextureBase : Region
         return 1;
     }
     
-    
     // TextureBase:SetTexelSnappingBias(bias) - Returns the texel snapping bias for the texture.
     
     /// <summary>
@@ -262,25 +261,30 @@ public class TextureBase : Region
         var metaName = GetMetatableName();
         luaL_newmetatable(L, metaName);
 
-        // 3) __index = self
+        // 3) __index = TextureBaseMetaTable
         lua_pushvalue(L, -1);
         lua_setfield(L, -2, "__index");
 
-        // 4) Bind methods
+        // 4) Link to the base class's metatable ("RegionMetaTable")
+        var baseMetaName = base.GetMetatableName();
+        luaL_getmetatable(L, baseMetaName);
+        lua_setmetatable(L, -2); // Sets TextureBaseMetaTable's metatable to RegionMetaTable
+        
+        // 5) Bind Frame-specific methods
         LuaHelpers.RegisterMethod(L, "SetColorTexture", internal_SetColorTexture);
         LuaHelpers.RegisterMethod(L, "SetVertexOffset", internal_SetVertexOffset);
         LuaHelpers.RegisterMethod(L, "SetTexture", internal_SetTexture);
         LuaHelpers.RegisterMethod(L, "SetTexCoord", internal_SetTexCoord);
 
         // Optional __gc
-        lua_pushcfunction(L, internal_FrameGC);
+        lua_pushcfunction(L, internal_ObjectGC);
         lua_setfield(L, -2, "__gc");
 
         // 5) pop
         lua_pop(L, 1);
     }
     
-    private int internal_FrameGC(lua_State L)
+    public override int internal_ObjectGC(lua_State L)
     {
         // Retrieve the table
         if (lua_istable(L, 1) == 0)

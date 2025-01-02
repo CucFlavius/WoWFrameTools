@@ -45,14 +45,18 @@ internal class Program
         C_CVar.Register(L);
         SlashCmdList.Register(L);
 
+        //SlashCmdList.ExecuteSlashCommand(L, "/dump GetTime()");
+        
         ////////////////////
         // Run some tests //
-        // var success = luaL_dostring(L, "C_ChatInfo.RegisterAddonMessagePrefix(\"TEST\");");
+        // var success = luaL_dostring(L, "print(CreateFrame(\"Frame\", \"FrameA\"))");
         // if (success != 0)
         // {
         //     AnsiConsole.WriteLine($"{lua_tostring(L, -1)}");
         //     lua_pop(L, 1);
         // }
+        //
+        // return;
         // var success = luaL_dofile(L, "test.lua");
         // if (success != 0)
         // {

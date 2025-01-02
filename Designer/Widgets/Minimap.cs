@@ -72,49 +72,10 @@ public class Minimap : Frame
         //LuaHelpers.RegisterMethod(L, "UnregisterAllEvents", internal_UnregisterAllEvents);
 
         // Optional __gc
-        lua_pushcfunction(L, internal_FrameGC);
+        lua_pushcfunction(L, internal_ObjectGC);
         lua_setfield(L, -2, "__gc");
 
         // 5) pop
         lua_pop(L, 1);
-    }
-
-    private int internal_FrameGC(lua_State L)
-    {
-        // Retrieve the table
-        if (lua_istable(L, 1) == 0)
-        {
-            return 0;
-        }
-
-        // Retrieve the Frame userdata from the table's __frame field
-        lua_pushstring(L, "__frame");
-        lua_gettable(L, 1); // table.__frame
-        if (lua_islightuserdata(L, -1) == 0)
-        {
-            lua_pop(L, 1);
-            return 0;
-        }
-
-        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
-        lua_pop(L, 1); // Remove __frame userdata from the stack
-
-        // Retrieve the Frame instance
-        if (API.UIObjects._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
-        {
-            // Free the GCHandle
-            if (frame.Handle.IsAllocated)
-            {
-                frame.Handle.Free();
-            }
-
-            // Remove from registry
-            API.UIObjects._frameRegistry.Remove(frameUserdataPtr);
-
-            // Perform any additional cleanup if necessary
-            // Example: frame.Dispose();
-        }
-
-        return 0;
     }
 }

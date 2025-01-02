@@ -413,18 +413,23 @@ namespace WoWFrameTools.Widgets
         
         public override void RegisterMetaTable(lua_State L)
         {
-            // 1) call base to register the "FrameScriptObjectMetaTable"
+            // 1) Register the base class's metatable first
             base.RegisterMetaTable(L);
 
-            // 2) Now define "UIObjectMetaTable"
+            // 2) Define "UIObjectMetaTable"
             string metaName = GetMetatableName();
             luaL_newmetatable(L, metaName);
 
-            // 3) __index = self
+            // 3) __index = UIObjectMetaTable
             lua_pushvalue(L, -1);
             lua_setfield(L, -2, "__index");
 
-            // 4) Bind methods
+            // 4) Link to the base class's metatable ("FrameScriptObjectMetaTable")
+            var baseMetaName = base.GetMetatableName();
+            luaL_getmetatable(L, baseMetaName);
+            lua_setmetatable(L, -2); // Sets UIObjectMetaTable's metatable to FrameScriptObjectMetaTable
+
+            // 5) Bind ScriptObject-specific methods
             LuaHelpers.RegisterMethod(L, "ClearParentKey", internal_ClearParentKey);
             LuaHelpers.RegisterMethod(L, "GetDebugName", internal_GetDebugName);
             LuaHelpers.RegisterMethod(L, "GetParent", internal_GetParent);
@@ -436,27 +441,11 @@ namespace WoWFrameTools.Widgets
             LuaHelpers.RegisterMethod(L, "SetScript", internal_SetScript);
             
             // Optional __gc
-            lua_pushcfunction(L, (state) => internal_ObjectGC(state));
+            lua_pushcfunction(L, internal_ObjectGC);
             lua_setfield(L, -2, "__gc");
 
-            // 5) pop
+            // 6) pop
             lua_pop(L, 1);
-        }
-        private int internal_ObjectGC(lua_State L)
-        {
-            // same as before: free the GCHandle, etc.
-            IntPtr userdataPtr = (IntPtr)lua_touserdata(L, 1);
-            if (userdataPtr != IntPtr.Zero)
-            {
-                IntPtr handlePtr = Marshal.ReadIntPtr(userdataPtr);
-                if (handlePtr != IntPtr.Zero)
-                {
-                    var handle = GCHandle.FromIntPtr(handlePtr);
-                    if (handle.IsAllocated)
-                        handle.Free();
-                }
-            }
-            return 0;
         }
         
         // ----------- Events ---------------

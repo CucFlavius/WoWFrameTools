@@ -114,11 +114,11 @@ namespace WoWFrameTools.Widgets
             var metaName = GetMetatableName();
             luaL_newmetatable(L, metaName);
 
-            // 2) __index = metatable
+            // 2) __index = FrameScriptObjectMetaTable
             lua_pushvalue(L, -1);
             lua_setfield(L, -2, "__index");
 
-            // 3) Register instance methods
+            // 3) Bind FrameScriptObject-specific methods
             LuaHelpers.RegisterMethod(L, "GetName", internal_GetName);
             LuaHelpers.RegisterMethod(L, "GetObjectType", internal_GetObjectType);
             LuaHelpers.RegisterMethod(L, "IsForbidden", internal_IsForbidden);
@@ -132,7 +132,7 @@ namespace WoWFrameTools.Widgets
             // 5) pop
             lua_pop(L, 1);
         }
-        private int internal_ObjectGC(lua_State L)
+        public virtual int internal_ObjectGC(lua_State L)
         {
             // standard GC approach
             IntPtr userdataPtr = (IntPtr)lua_touserdata(L, 1);

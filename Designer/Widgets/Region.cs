@@ -168,18 +168,23 @@ public class Region : ScriptRegion
         
     public override void RegisterMetaTable(lua_State L)
     {
-        // 1) call base to register the "RegionMetaTable"
+        // 1) Register the base class's metatable first
         base.RegisterMetaTable(L);
 
-        // 2) Now define "RegionMetaTable"
+        // 2) Define "RegionMetaTable"
         var metaName = GetMetatableName();
         luaL_newmetatable(L, metaName);
 
-        // 3) __index = self
+        // 3) __index = RegionMetaTable
         lua_pushvalue(L, -1);
         lua_setfield(L, -2, "__index");
 
-        // 4) Bind methods
+        // 4) Link to the base class's metatable ("ScriptRegionMetaTable")
+        var baseMetaName = base.GetMetatableName();
+        luaL_getmetatable(L, baseMetaName);
+        lua_setmetatable(L, -2); // Sets RegionMetaTable's metatable to ScriptRegionMetaTable
+
+        // 5) Bind Region-specific methods
         LuaHelpers.RegisterMethod(L, "GetVertexColor", internal_GetVertexColor);
         LuaHelpers.RegisterMethod(L, "SetVertexColor", internal_SetVertexColor);
         LuaHelpers.RegisterMethod(L, "SetScale", internal_SetScale);
@@ -188,27 +193,10 @@ public class Region : ScriptRegion
         LuaHelpers.RegisterMethod(L, "SetAlpha", internal_SetAlpha);
 
         // Optional __gc
-        lua_pushcfunction(L, internal_RegionGC);
+        lua_pushcfunction(L, internal_ObjectGC);
         lua_setfield(L, -2, "__gc");
 
-        // 5) pop
+        // 6) pop
         lua_pop(L, 1);
-    }
-        
-    private int internal_RegionGC(lua_State L)
-    {
-        // standard GC approach
-        IntPtr userdataPtr = (IntPtr)lua_touserdata(L, 1);
-        if (userdataPtr != IntPtr.Zero)
-        {
-            IntPtr handlePtr = Marshal.ReadIntPtr(userdataPtr);
-            if (handlePtr != IntPtr.Zero)
-            {
-                GCHandle handle = GCHandle.FromIntPtr(handlePtr);
-                if (handle.IsAllocated)
-                    handle.Free();
-            }
-        }
-        return 0;
     }
 }

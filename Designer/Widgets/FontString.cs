@@ -261,11 +261,16 @@ public class FontString : Region, IFontInstance
         var metaName = GetMetatableName();
         luaL_newmetatable(L, metaName);
 
-        // 3) __index = self
+        // 3) __index = FontStringMetaTable
         lua_pushvalue(L, -1);
         lua_setfield(L, -2, "__index");
 
-        // 4) Bind methods
+        // 4) Link to the base class's metatable ("RegionMetaTable")
+        var baseMetaName = base.GetMetatableName();
+        luaL_getmetatable(L, baseMetaName);
+        lua_setmetatable(L, -2); // Sets FontStringMetaTable's metatable to RegionMetaTable
+        
+        // 5) Bind Frame-specific methods
         LuaHelpers.RegisterMethod(L, "SetText", internal_SetText);
         LuaHelpers.RegisterMethod(L, "GetStringWidth", internal_GetStringWidth);
         
@@ -276,14 +281,14 @@ public class FontString : Region, IFontInstance
         LuaHelpers.RegisterMethod(L, "SetTextColor", internal_SetTextColor);
 
         // Optional __gc
-        lua_pushcfunction(L, internal_FrameGC);
+        lua_pushcfunction(L, internal_ObjectGC);
         lua_setfield(L, -2, "__gc");
 
-        // 5) pop
+        // 6) pop
         lua_pop(L, 1);
     }
     
-    private int internal_FrameGC(lua_State L)
+    public override int internal_ObjectGC(lua_State L)
     {
         // Retrieve the table
         if (lua_istable(L, 1) == 0)

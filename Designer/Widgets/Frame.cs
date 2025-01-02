@@ -224,7 +224,7 @@ public class Frame : Region
         lua_newtable(L); // Push a new table onto the stack
 
         // Set the Frame userdata in the table with a hidden key
-        lua_pushstring(L, "__frame"); // Key
+        lua_pushstring(L, "__frame");
         lua_pushlightuserdata(L, (UIntPtr)textureUserdataPtr); // Value (light userdata)
         lua_settable(L, -3); // table["__frame"] = userdata
 
@@ -491,7 +491,6 @@ public class Frame : Region
         return 0;
     }
     
-    
     // Frame:SetClampRectInsets(left, right, top, bottom) - Controls how much of the frame may be moved off-screen.
     
     /// <summary>
@@ -684,7 +683,6 @@ public class Frame : Region
         return 0;
     }
     
-    
     // Frame:SetUsingParentLevel(usingParentLevel)
     // Frame:SetWindow([window])
     // Frame:StartMoving([alwaysStartFromMouse]) - Begins repositioning the frame via mouse movement.
@@ -854,11 +852,16 @@ public class Frame : Region
         var metaName = GetMetatableName();
         luaL_newmetatable(L, metaName);
 
-        // 3) __index = self
+        // 3) __index = FrameMetaTable
         lua_pushvalue(L, -1);
         lua_setfield(L, -2, "__index");
 
-        // 4) Bind methods
+        // 4) Link to the base class's metatable ("RegionMetaTable")
+        var baseMetaName = base.GetMetatableName();
+        luaL_getmetatable(L, baseMetaName);
+        lua_setmetatable(L, -2); // Sets FrameMetaTable's metatable to RegionMetaTable
+        
+        // 5) Bind Frame-specific methods
         LuaHelpers.RegisterMethod(L, "RegisterEvent", internal_RegisterEvent);
         LuaHelpers.RegisterMethod(L, "UnregisterAllEvents", internal_UnregisterAllEvents);
         LuaHelpers.RegisterMethod(L, "UnregisterEvent", internal_UnregisterEvent);
@@ -878,14 +881,14 @@ public class Frame : Region
         LuaHelpers.RegisterMethod(L, "CreateLine", internal_CreateLine);
 
         // Optional __gc
-        lua_pushcfunction(L, internal_FrameGC);
+        lua_pushcfunction(L, internal_ObjectGC);
         lua_setfield(L, -2, "__gc");
 
-        // 5) pop
+        // 6) pop
         lua_pop(L, 1);
     }
     
-    private int internal_FrameGC(lua_State L)
+    public override int internal_ObjectGC(lua_State L)
     {
         // Retrieve the table
         if (lua_istable(L, 1) == 0)

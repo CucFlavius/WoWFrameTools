@@ -412,18 +412,23 @@ namespace WoWFrameTools.Widgets
         
         public override void RegisterMetaTable(lua_State L)
         {
-            // 1) call base to register the "ScriptRegionMetaTable"
+            // 1) Register the base class's metatable first
             base.RegisterMetaTable(L);
 
-            // 2) Now define "ScriptRegionMetaTable"
+            // 2) Define "ScriptRegionMetaTable"
             var metaName = GetMetatableName();
             luaL_newmetatable(L, metaName);
 
-            // 3) __index = self
+            // 3) __index = ScriptRegionMetaTable
             lua_pushvalue(L, -1);
             lua_setfield(L, -2, "__index");
 
-            // 4) Bind methods
+            // 4) Link to the base class's metatable ("UIObjectMetaTable")
+            var baseMetaName = base.GetMetatableName();
+            luaL_getmetatable(L, baseMetaName);
+            lua_setmetatable(L, -2); // Sets ScriptRegionMetaTable's metatable to UIObjectMetaTable
+
+            // 5) Bind ScriptRegion-specific methods
             // ScriptRegion
             LuaHelpers.RegisterMethod(L, "Hide", internal_Hide);
             LuaHelpers.RegisterMethod(L, "Show", internal_Show);
@@ -442,28 +447,11 @@ namespace WoWFrameTools.Widgets
             
             
             // Optional __gc
-            lua_pushcfunction(L, internal_ScriptRegionGC);
+            lua_pushcfunction(L, internal_ObjectGC);
             lua_setfield(L, -2, "__gc");
 
-            // 5) pop
+            // 6) pop
             lua_pop(L, 1);
-        }
-
-        private int internal_ScriptRegionGC(lua_State L)
-        {
-            // standard GC approach
-            IntPtr userdataPtr = (IntPtr)lua_touserdata(L, 1);
-            if (userdataPtr != IntPtr.Zero)
-            {
-                IntPtr handlePtr = Marshal.ReadIntPtr(userdataPtr);
-                if (handlePtr != IntPtr.Zero)
-                {
-                    GCHandle handle = GCHandle.FromIntPtr(handlePtr);
-                    if (handle.IsAllocated)
-                        handle.Free();
-                }
-            }
-            return 0;
         }
     }
 }
