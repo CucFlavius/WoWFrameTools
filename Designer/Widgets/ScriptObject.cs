@@ -260,7 +260,8 @@ namespace WoWFrameTools.Widgets
             catch (Exception ex)
             {
                 // Log the exception
-                Console.WriteLine($"Exception in HookScript: {ex.Message}");
+                //Console.WriteLine($"Exception in HookScript: {ex.Message}");
+                Log.Exception(L, ex, "HookScript");
                 Log.ErrorL(L, "HookScript encountered an error.");
                 return 0; // Unreachable
             }
@@ -371,15 +372,16 @@ namespace WoWFrameTools.Widgets
                                 if (status != 0)
                                 {
                                     // Retrieve and log the error message
-                                    var error = lua_tostring(L, -1);
-                                    AnsiConsole.MarkupLine($"[red]Error in event '{eventName}': {error}[/]");
+                                    Log.ErrorL(L, $"Error in event '{eventName}': {lua_tostring(L, -1)}");
                                     lua_pop(L, 1);
                                 }
                                 //AnsiConsole.MarkupLine($"[green]Successfully handled event '{eventName}'.[/]");
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"Exception while executing script '{scriptTypeName}': {ex.Message}");
+                                Log.Error($"Exception while executing script [green]'{scriptTypeName}'[/] event [yellow]{eventName}[/]");
+                                Log.Exception(L, ex, "SetScript");
+                                //Log.Exception(ex);
                             }
                         }
                     }, refIndex); // Pass the refIndex to manage references
@@ -459,8 +461,9 @@ namespace WoWFrameTools.Widgets
                 {
                     var handlersCopy = new List<ScriptHandler>(eventHandlers);
                     foreach (var handler in handlersCopy)
-                        //AnsiConsole.MarkupLine($"[yellow]Invoking OnEvent handler for event '{eventName}'[/]");
+                    {
                         handler(this, eventName, param);
+                    }
                 }
 
             switch (eventName)

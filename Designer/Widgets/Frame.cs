@@ -173,7 +173,7 @@ public class Frame : Region
     /// <returns></returns>
     private Texture CreateTexture(string? name = null, string? drawLayer = null, string? templateName = null, int subLevel = 0)
     {
-        var texture = new Texture(name, drawLayer, templateName, subLevel, this);
+        var texture = new Texture(name, drawLayer, templateName, subLevel, null);
         _textures.Add(texture);
         return texture;
     }

@@ -72,7 +72,42 @@ public class TextureBase : Region
     // TextureBase:SetGradient(orientation, minColor, maxColor) - Sets a gradient color shading for the texture.
     // TextureBase:SetHorizTile([tiling]) - Sets whether the texture should tile horizontally.
     // TextureBase:SetMask(file) - Applies a mask to the texture.
-    // TextureBase:SetRotation(radians [, normalizedRotationPoint]) - Applies a rotation to the texture.
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_TextureBase_SetRotation
+    /// TextureBase:SetRotation(radians [, normalizedRotationPoint]) - Applies a rotation to the texture.
+    /// </summary>
+    /// <param name="radians"></param>
+    /// <param name="normalizedRotationPoint"></param>
+    private void SetRotation(float radians, string? normalizedRotationPoint)
+    {
+        
+    }
+    private int internal_SetRotation(lua_State L)
+    {
+        var texture = GetThis(L, 1) as TextureBase;
+        var argc = lua_gettop(L);
+        
+        if (argc < 3)
+        {
+            Log.ErrorL(L, "SetRotation requires at least 1 argument: radians.");
+            return 0; // Unreachable
+        }
+
+        var radians = (float)lua_tonumber(L, 2);
+        string? normalizedRotationPoint = null;
+
+        if (argc > 3)
+        {
+            normalizedRotationPoint = lua_tostring(L, 3);
+        }
+
+        texture?.SetRotation(radians, normalizedRotationPoint);
+
+        lua_pushboolean(L, 1);
+        return 1;
+    }
+    
     // TextureBase:SetSnapToPixelGrid([snap]) - Sets the texture to snap to the pixel grid.
     
     /// <summary>
@@ -275,6 +310,7 @@ public class TextureBase : Region
         LuaHelpers.RegisterMethod(L, "SetVertexOffset", internal_SetVertexOffset);
         LuaHelpers.RegisterMethod(L, "SetTexture", internal_SetTexture);
         LuaHelpers.RegisterMethod(L, "SetTexCoord", internal_SetTexCoord);
+        LuaHelpers.RegisterMethod(L, "SetRotation", internal_SetRotation);
 
         // Optional __gc
         lua_pushcfunction(L, internal_ObjectGC);

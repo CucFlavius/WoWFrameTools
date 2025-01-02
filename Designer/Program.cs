@@ -26,12 +26,14 @@ internal class Program
         luaL_openlibs(L);
         ProcessLuaFile(L, "Compat.lua", "");
 
-        new Frame().RegisterMetaTable(L);
-        new Texture().RegisterMetaTable(L);
-        new FontString().RegisterMetaTable(L);
         new Button().RegisterMetaTable(L);
         new EditBox().RegisterMetaTable(L);
+        new FontString().RegisterMetaTable(L);
+        new Frame().RegisterMetaTable(L);
+        new GameTooltip().RegisterMetaTable(L);
         new Line().RegisterMetaTable(L);
+        new Minimap().RegisterMetaTable(L);
+        new Texture().RegisterMetaTable(L);
         
         LuaHelpers.RegisterGlobalMethod(L, "CreateFrame", UIObjects.CreateFrame);
         LuaHelpers.RegisterGlobalMethod(L, "GetTime", Game.GetTime);
@@ -71,7 +73,7 @@ internal class Program
         UIObjects.UIParent.RegisterMetaTable(L);
         UIObjects.CreateGlobalFrame(L, UIObjects.UIParent);
         
-        UIObjects.Minimap = new Minimap("Minimap", "Minimap", UIObjects.UIParent, null, 0);
+        UIObjects.Minimap = new Minimap("Minimap", UIObjects.UIParent, null, 0);
         UIObjects.Minimap.RegisterMetaTable(L);
         UIObjects.CreateGlobalFrame(L, UIObjects.Minimap);
         

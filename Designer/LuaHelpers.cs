@@ -131,7 +131,7 @@ public static class LuaHelpers
     public static Dictionary<string, object> GetTable(lua_State luaState, int index, HashSet<IntPtr>? visited = null)
     {
         var table = new Dictionary<string, object>();
-        visited ??= [];
+        visited ??= new HashSet<IntPtr>();
 
         // Compute absolute index for Lua 5.1
         var absIndex = index >= 0 ? index : lua_gettop(luaState) + index + 1;
@@ -145,20 +145,33 @@ public static class LuaHelpers
         // Get the address of the table to detect cycles
         var tableAddress = (IntPtr)lua_topointer(luaState, absIndex);
         if (tableAddress != IntPtr.Zero)
+        {
             if (!visited.Add(tableAddress))
             {
-                AnsiConsole.WriteLine("GetTable: Detected cyclic reference. Skipping serialization of this table.");
+                //AnsiConsole.WriteLine("GetTable: Detected cyclic reference. Skipping serialization of this table.");
                 return table;
             }
+        }
 
         lua_pushnil(luaState); // first key
         while (lua_next(luaState, absIndex) != 0)
         {
             // key at -2 and value at -1
-            var key = lua_tostring(luaState, -2);
-            if (key == null)
+            string? key = null;
+
+            int keyType = lua_type(luaState, -2);
+            if (keyType == LUA_TSTRING)
             {
-                AnsiConsole.WriteLine("GetTable: Encountered a non-string key. Skipping this key-value pair.");
+                key = lua_tostring(luaState, -2);
+            }
+            else if (keyType == LUA_TNUMBER)
+            {
+                // Convert number keys to string to fit the Dictionary<string, object> structure
+                key = lua_tonumber(luaState, -2).ToString();
+            }
+            else
+            {
+                AnsiConsole.WriteLine("GetTable: Encountered an unsupported key type. Skipping this key-value pair.");
                 lua_pop(luaState, 1); // remove value, keep key for next iteration
                 continue;
             }
@@ -167,7 +180,7 @@ public static class LuaHelpers
             {
                 var value = GetLuaValue(luaState, -1, visited);
                 table[key] = value;
-                //AnsiConsole.WriteLine($"GetTable: Key '{key}' => Value '{value}'");
+                // AnsiConsole.WriteLine($"GetTable: Key '{key}' => Value '{value}'");
             }
             catch (Exception ex)
             {
@@ -176,6 +189,7 @@ public static class LuaHelpers
 
             lua_pop(luaState, 1); // remove value, keep key for next iteration
         }
+
 
         return table;
     }
@@ -217,15 +231,15 @@ public static class LuaHelpers
         if (lua_isuserdata(luaState, index) != 0)
         {
             // Handle userdata
-            return null;
-            //return GetUserdata(luaState, index);
+            //return null;
+            return GetUserdata(luaState, index);
         }
 
         // Handle other types like functions, threads, etc., if necessary
         int type = lua_type(luaState, index); // Retrieve the type code
         string typeName = lua_typename(luaState, type); // Get the type name as a string
 
-        AnsiConsole.MarkupLine($"[red]GetLuaValue:[/] Unsupported Lua type '{typeName}' at index {index}. Skipping.");
+        //AnsiConsole.MarkupLine($"[red]GetLuaValue:[/] Unsupported Lua type '{typeName}' at index {index}. Skipping.");
         return null;
     }
 
@@ -245,13 +259,20 @@ public static class LuaHelpers
         {
             return frame;
         }
+        else if (API.UIObjects._textureRegistry.TryGetValue(userdataPtr, out var texture))
+        {
+            return texture;
+        }
+        else if (API.UIObjects._fontStringRegistry.TryGetValue(userdataPtr, out var fontString))
+        {
+            return fontString;
+        }
         /*
         else if (API.UIObjects._nameToFrameRegistry.TryGetValue(userdataPtr, out var namedFrame))
         {
             return namedFrame;
         }
         */
-        // Add additional registries as needed for different userdata types
 
         // Step 3: Handle unknown userdata types
         // Optionally, retrieve the metatable to determine the userdata type
@@ -398,7 +419,8 @@ public static class LuaHelpers
             {
                 if (!API.UIObjects._frameRegistry.TryGetValue(parentUserdataPtr, out var foundFrame))
                 {
-                    throw new ArgumentException("Invalid frame specified.");
+                    return null;
+                    //throw new ArgumentException("Invalid frame specified.");
                 }
 
                 relativeTo = foundFrame;
@@ -457,5 +479,44 @@ public static class LuaHelpers
         lua_rawgeti(L, LUA_REGISTRYINDEX, child.LuaRegistryRef);
         // Now the child's table/userdata is on top of the stack.
         // If child has no registry ref, you might need to create one or log an error.
+    }
+
+    public static void PrintLuaArguments(lua_State L, int argc)
+    {
+        for (var i = 1; i <= argc; i++)
+        {
+            int type = lua_type(L, i);
+            string typeName = GetLuaTypeName(type);
+            Console.WriteLine($"Argument {i}: Type = {typeName}");
+        }
+    }
+    
+    private static string GetLuaTypeName(int luaType)
+    {
+        switch (luaType)
+        {
+            case LUA_TNONE:
+                return "none";
+            case LUA_TNIL:
+                return "nil";
+            case LUA_TBOOLEAN:
+                return "boolean";
+            case LUA_TLIGHTUSERDATA:
+                return "lightuserdata";
+            case LUA_TNUMBER:
+                return "number";
+            case LUA_TSTRING:
+                return "string";
+            case LUA_TTABLE:
+                return "table";
+            case LUA_TFUNCTION:
+                return "function";
+            case LUA_TUSERDATA:
+                return "userdata";
+            case LUA_TTHREAD:
+                return "thread";
+            default:
+                return "unknown";
+        }
     }
 }

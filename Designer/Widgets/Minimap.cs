@@ -11,7 +11,7 @@ namespace WoWFrameTools.Widgets;
 /// </summary>
 public class Minimap : Frame
 {
-    public Minimap(string objectType, string? name = null, Frame? parent = null, string? template = null, int id = 0) : base(objectType, name, parent, template, id)
+    public Minimap(string? name = null, Frame? parent = null, string? template = null, int id = 0) : base("Minimap", name, parent, template, id)
     {
     }
     

@@ -151,6 +151,20 @@ public static class Log
     {
         AnsiConsole.WriteException(exception);
     }
+    
+    public static void Exception(lua_State L, Exception ex, string context)
+    {
+        // Retrieve the current Lua file and line number
+        lua_Debug ar = new lua_Debug();
+        lua_getstack(L, 1, ar);
+        lua_getinfo(L, "Sl", ar);
+        string luaFile = ar.source;
+        int luaLine = ar.currentline;
+
+        // Log the exception details along with the context, file, and line number
+        AnsiConsole.MarkupLine($"[red]Exception in {context} at {luaFile}:{luaLine}[/]");
+        AnsiConsole.WriteException(ex);
+    }
 
     public static void Error(string message)
     {

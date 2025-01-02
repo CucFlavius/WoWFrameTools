@@ -168,40 +168,7 @@ public partial class Texture
 
         return 0;
     }
-    
-    /// <summary>
-    /// https://warcraft.wiki.gg/wiki/API_TextureBase_SetRotation
-    /// TextureBase:SetRotation(radians [, normalizedRotationPoint])
-    /// </summary>
-    /// <param name="L"></param>
-    /// <returns></returns>
-    private static int internal_SetRotation(lua_State L)
-    {
-        var texture = GetTexture(L, 1);
 
-        var argc = lua_gettop(L);
-        if (argc < 1)
-        {
-            lua_pushstring(L, "SetRotation requires at least 1 argument: radians.");
-            lua_error(L);
-            return 0; // Unreachable
-        }
-
-        var radians = (float)lua_tonumber(L, 2);
-        string? normalizedRotationPoint = null;
-
-        if (argc >= 2)
-        {
-            normalizedRotationPoint = lua_tostring(L, 3);
-        }
-
-        texture?.SetRotation(radians, normalizedRotationPoint);
-
-        lua_pushboolean(L, 1);
-        return 1;
-     
-    }
-    
     public static int internal_GetParent(lua_State L)
     {
         var texture = GetTexture(L, 1);
