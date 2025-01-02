@@ -34,6 +34,7 @@ internal class Program
         new Line().RegisterMetaTable(L);
         new Minimap().RegisterMetaTable(L);
         new Texture().RegisterMetaTable(L);
+        new ModelScene().RegisterMetaTable(L);
         
         LuaHelpers.RegisterGlobalMethod(L, "CreateFrame", UIObjects.CreateFrame);
         LuaHelpers.RegisterGlobalMethod(L, "GetTime", Game.GetTime);

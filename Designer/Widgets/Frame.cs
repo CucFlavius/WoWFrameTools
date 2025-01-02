@@ -514,8 +514,55 @@ public class Frame : Region
     
     // Frame:SetDontSavePosition(dontSave)
     // Frame:SetDrawLayerEnabled(layer [, isEnabled])
-    // Frame:SetFixedFrameLevel(isFixed)
-    // Frame:SetFixedFrameStrata(isFixed)
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Frame_SetFixedFrameLevel
+    /// Frame:SetFixedFrameLevel(isFixed)
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    private void SetFixedFrameLevel(bool isFixed)
+    {
+        
+    }
+    private int internal_SetFixedFrameLevel(lua_State L)
+    {
+        var frame = GetThis(L, 1) as Frame;
+
+        var argc = lua_gettop(L);
+        if (argc != 3)
+        {
+            Log.ErrorL(L, "SetFixedFrameLevel requires exactly 1 argument: isFixed.");
+            return 0; // Unreachable
+        }
+        
+        var isFixed = lua_toboolean(L, 2) != 0;
+        
+        frame?.SetFixedFrameLevel(isFixed);
+        
+        return 0;
+    }
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Frame_SetFixedFrameStrata
+    /// Frame:SetFixedFrameStrata(isFixed)
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    private void SetFixedFrameStrata(bool isFixed)
+    {
+        
+    }
+    private int internal_SetFixedFrameStrata(lua_State L)
+    {
+        var frame = GetThis(L, 1) as Frame;
+        var isFixed = lua_toboolean(L, 2) != 0;
+
+        frame?.SetFixedFrameStrata(isFixed);
+
+        return 0;
+    }
+    
     // Frame:SetFlattensRenderLayers(flatten) - Controls whether all subregions are composited into a single render layer.
     
     /// <summary>
@@ -879,6 +926,8 @@ public class Frame : Region
         LuaHelpers.RegisterMethod(L, "SetUserPlaced", internal_SetUserPlaced);
         LuaHelpers.RegisterMethod(L, "GetChildren", internal_GetChildren);
         LuaHelpers.RegisterMethod(L, "CreateLine", internal_CreateLine);
+        LuaHelpers.RegisterMethod(L, "SetFixedFrameStrata", internal_SetFixedFrameStrata);
+        LuaHelpers.RegisterMethod(L, "SetFixedFrameLevel", internal_SetFixedFrameLevel);
 
         // Optional __gc
         lua_pushcfunction(L, internal_ObjectGC);

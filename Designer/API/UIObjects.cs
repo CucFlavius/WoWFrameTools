@@ -99,11 +99,11 @@ public static class UIObjects
             // 4. Create a new Frame instance
             var frame = frameType switch
             {
-                //"ModelScene" => new ModelScene(L, frameType, name, parentFrame, template, id),
                 "Frame" => new Frame(frameType, name, parentFrame, template, id),
                 "Button" => new Button(name, parentFrame, template, id),
                 "EditBox" => new EditBox(name, parentFrame, template, id),
                 "GameTooltip" => new GameTooltip(name, parentFrame, template, id),
+                "ModelScene" => new ModelScene(name, parentFrame, template, id),
                 _ => throw new NotImplementedException($"Unsupported frame type: {frameType}")
             };
 

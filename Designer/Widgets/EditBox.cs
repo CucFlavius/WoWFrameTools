@@ -72,7 +72,26 @@ public class EditBox : Frame, IFontInstance
     // EditBox:SetBlinkSpeed(cursorBlinkSpeedSec)
     // EditBox:SetCountInvisibleLetters([countInvisibleLetters])
     // EditBox:SetCursorPosition(cursorPosition) - Sets the cursor position in the editbox.
-    // EditBox:SetEnabled([enabled])
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_EditBox_SetEnabled
+    /// EditBox:SetEnabled([enabled])
+    /// </summary>
+    /// <param name="enabled"></param>
+    private void SetEnabled(bool enabled)
+    {
+        
+    }
+    private int internal_SetEnabled(lua_State L)
+    {
+        var frame = GetThis(L, 1) as EditBox;
+        var enabled = lua_toboolean(L, 2) != 0;
+
+        frame?.SetEnabled(enabled);
+
+        return 0;
+    }
+    
     // EditBox:SetFocus()
     // EditBox:SetHighlightColor(colorR, colorG, colorB [, a])
     // EditBox:SetHistoryLines(numHistoryLines) - Sets the number of history lines to remember.
@@ -318,6 +337,7 @@ public class EditBox : Frame, IFontInstance
         LuaHelpers.RegisterMethod(L, "SetText", internal_SetText);
         LuaHelpers.RegisterMethod(L, "SetAutoFocus", internal_SetAutoFocus);
         LuaHelpers.RegisterMethod(L, "SetMaxLetters", internal_SetMaxLetters);
+        LuaHelpers.RegisterMethod(L, "SetEnabled", internal_SetEnabled);
         
         // IFontInstance
         LuaHelpers.RegisterMethod(L, "SetFont", internal_SetFont);
