@@ -32,31 +32,28 @@ public static class Game
     /// <returns></returns>
     public static int GetLocale(lua_State L)
     {
-        lock (API._luaLock)
+        try
         {
-            try
-            {
-                // Retrieve the locale from the system or configuration
-                var locale = CultureInfo.CurrentCulture.Name;
+            // Retrieve the locale from the system or configuration
+            var locale = CultureInfo.CurrentCulture.Name;
 
-                // Push the locale string onto the Lua stack
-                lua_pushstring(L, locale);
+            // Push the locale string onto the Lua stack
+            lua_pushstring(L, locale);
 
-                // Log the retrieval
-                //AnsiConsole.WriteLine($"GetLocale called. Returning locale: {locale}");
+            // Log the retrieval
+            //AnsiConsole.WriteLine($"GetLocale called. Returning locale: {locale}");
 
-                // Return the number of return values
-                return 1;
-            }
-            catch (Exception ex)
-            {
-                // Log the exception
-                Log.Exception(ex);
+            // Return the number of return values
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            // Log the exception
+            Log.Exception(ex);
 
-                // Raise a Lua error
-                Log.ErrorL(L, "GetLocale encountered an error.");
-                return 0; // Unreachable
-            }
+            // Raise a Lua error
+            Log.ErrorL(L, "GetLocale encountered an error.");
+            return 0; // Unreachable
         }
     }
     

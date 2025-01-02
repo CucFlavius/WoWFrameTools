@@ -142,11 +142,7 @@ public class Line : TextureBase
         LuaHelpers.RegisterMethod(L, "SetThickness", internal_SetThickness);
         LuaHelpers.RegisterMethod(L, "SetEndPoint", internal_SetEndPoint);
         LuaHelpers.RegisterMethod(L, "SetStartPoint", internal_SetStartPoint);
-
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
+        
         // 6) pop
         lua_pop(L, 1);
     }

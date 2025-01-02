@@ -251,7 +251,7 @@ public class FontString : Region, IFontInstance
     // ----------- Virtual Registration ---------------
     
     public override string GetMetatableName() => "FontStringMetaTable";
-        
+
     public override void RegisterMetaTable(lua_State L)
     {
         // 1) call base to register the "FontStringMetaTable"
@@ -269,61 +269,18 @@ public class FontString : Region, IFontInstance
         var baseMetaName = base.GetMetatableName();
         luaL_getmetatable(L, baseMetaName);
         lua_setmetatable(L, -2); // Sets FontStringMetaTable's metatable to RegionMetaTable
-        
+
         // 5) Bind Frame-specific methods
         LuaHelpers.RegisterMethod(L, "SetText", internal_SetText);
         LuaHelpers.RegisterMethod(L, "GetStringWidth", internal_GetStringWidth);
-        
+
         // IFontInstance
         LuaHelpers.RegisterMethod(L, "SetFont", internal_SetFont);
         LuaHelpers.RegisterMethod(L, "SetJustifyH", internal_SetJustifyH);
         LuaHelpers.RegisterMethod(L, "SetJustifyV", internal_SetJustifyV);
         LuaHelpers.RegisterMethod(L, "SetTextColor", internal_SetTextColor);
 
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
         // 6) pop
         lua_pop(L, 1);
-    }
-    
-    public override int internal_ObjectGC(lua_State L)
-    {
-        // Retrieve the table
-        if (lua_istable(L, 1) == 0)
-        {
-            return 0;
-        }
-
-        // Retrieve the Frame userdata from the table's __frame field
-        lua_pushstring(L, "__frame");
-        lua_gettable(L, 1); // table.__frame
-        if (lua_islightuserdata(L, -1) == 0)
-        {
-            lua_pop(L, 1);
-            return 0;
-        }
-
-        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
-        lua_pop(L, 1); // Remove __frame userdata from the stack
-
-        // Retrieve the Frame instance
-        if (API.UIObjects._fontStringRegistry.TryGetValue(frameUserdataPtr, out var frame))
-        {
-            // Free the GCHandle
-            if (frame.Handle.IsAllocated)
-            {
-                frame.Handle.Free();
-            }
-
-            // Remove from registry
-            API.UIObjects._fontStringRegistry.Remove(frameUserdataPtr);
-
-            // Perform any additional cleanup if necessary
-            // Example: frame.Dispose();
-        }
-
-        return 0;
     }
 }

@@ -52,10 +52,6 @@ public class Texture : TextureBase
         //LuaHelpers.RegisterMethod(L, "UnregisterEvent", internal_UnregisterEvent);
         //LuaHelpers.RegisterMethod(L, "SetFrameStrata", internal_SetFrameStrata);
 
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
         // 6) pop
         lua_pop(L, 1);
     }

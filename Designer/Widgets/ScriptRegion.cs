@@ -237,11 +237,7 @@ namespace WoWFrameTools.Widgets
 
             if (lua_gettop(L) >= 2 && lua_isnil(L, 2) != 0)
             {
-                var relativeToPtr = (IntPtr)lua_touserdata(L, 2);
-                if (relativeToPtr != IntPtr.Zero && API.UIObjects._frameRegistry.TryGetValue(relativeToPtr, out var foundFrame))
-                    relativeTo = foundFrame;
-                else
-                    throw new ArgumentException("Invalid relativeTo frame specified.");
+                relativeTo = GetThis(L, 2) as Frame;
             }
 
             if (lua_gettop(L) >= 3) doResize = lua_toboolean(L, 3) != 0;
@@ -445,11 +441,6 @@ namespace WoWFrameTools.Widgets
             LuaHelpers.RegisterMethod(L, "SetWidth", internal_SetWidth);
             LuaHelpers.RegisterMethod(L, "ClearAllPoints", internal_ClearAllPoints);
             
-            
-            // Optional __gc
-            lua_pushcfunction(L, internal_ObjectGC);
-            lua_setfield(L, -2, "__gc");
-
             // 6) pop
             lua_pop(L, 1);
         }

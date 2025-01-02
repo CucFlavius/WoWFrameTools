@@ -73,7 +73,7 @@ public class Frame : Region
         Marshal.WriteIntPtr(userdataPtr, handlePtr);
 
         // Set the metatable for the userdata
-        luaL_getmetatable(L, "FontStringMetaTable");
+        luaL_getmetatable(L, fontString.GetMetatableName());
         lua_setmetatable(L, -2);
 
         // Add the Frame to the registry for later retrieval
@@ -87,6 +87,19 @@ public class Frame : Region
         var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
         fontString.LuaRegistryRef = refIndex;
 
+        // 9. **Create a Lua table and embed the userdata**
+        // Create a new Lua table
+        lua_newtable(L); // Push a new table onto the stack
+
+        // Set the Frame userdata in the table with a hidden key
+        lua_pushstring(L, "__frame"); // Key
+        lua_pushlightuserdata(L, (UIntPtr)userdataPtr); // Value (light userdata)
+        lua_settable(L, -3); // table["__frame"] = userdata
+
+        // Set the metatable for the table to handle method calls and property accesses
+        luaL_getmetatable(L, fontString.GetMetatableName()); // Push the FrameMetaTable
+        lua_setmetatable(L, -2); // setmetatable(table, "FrameMetaTable")
+        
         Log.CreateFontString(fontString);
         
         return 1;
@@ -124,11 +137,11 @@ public class Frame : Region
         if (lua_gettop(L) >= 3) drawLayer = lua_tostring(L, 3);
         string? templateName = null;
         if (lua_gettop(L) >= 4) templateName = lua_tostring(L, 4);
-        int subLevel = 0;
+        var subLevel = 0;
         if (lua_gettop(L) >= 5) subLevel = (int)lua_tonumber(L, 5);
 
         // Create the line
-        Line line = frame.CreateLine(name, drawLayer, templateName, subLevel);
+        var line = frame.CreateLine(name, drawLayer, templateName, subLevel);
         
         // Allocate a GCHandle to prevent the Frame from being garbage collected
         var handle = GCHandle.Alloc(line);
@@ -141,7 +154,7 @@ public class Frame : Region
         Marshal.WriteIntPtr(userdataPtr, handlePtr);
 
         // Set the metatable for the userdata
-        luaL_getmetatable(L, "LineMetaTable");
+        luaL_getmetatable(L, line.GetMetatableName());
         lua_setmetatable(L, -2);
 
         // Add the Frame to the registry for later retrieval
@@ -149,12 +162,25 @@ public class Frame : Region
 
         // Assign the userdataPtr and LuaRegistryRef to the Frame instance
         line.UserdataPtr = userdataPtr;
-
-        // Create a reference to the userdata in the registry
+        
+        // Create a reference to the userdata in the Lua registry
         lua_pushvalue(L, -1); // Push the userdata
-        var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
+        int refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
         line.LuaRegistryRef = refIndex;
 
+        // 9. **Create a Lua table and embed the userdata**
+        // Create a new Lua table
+        lua_newtable(L); // Push a new table onto the stack
+
+        // Set the Frame userdata in the table with a hidden key
+        lua_pushstring(L, "__frame"); // Key
+        lua_pushlightuserdata(L, (UIntPtr)userdataPtr); // Value (light userdata)
+        lua_settable(L, -3); // table["__frame"] = userdata
+
+        // Set the metatable for the table to handle method calls and property accesses
+        luaL_getmetatable(L, line.GetMetatableName()); // Push the FrameMetaTable
+        lua_setmetatable(L, -2); // setmetatable(table, "FrameMetaTable")
+        
         Log.CreateLine(line);
         
         return 1;
@@ -205,7 +231,7 @@ public class Frame : Region
         Marshal.WriteIntPtr(textureUserdataPtr, handlePtr);
 
         // Set the metatable for the userdata
-        luaL_getmetatable(L, "TextureMetaTable"); // Ensure TextureMetaTable is set up
+        luaL_getmetatable(L, texture.GetMetatableName()); // Ensure TextureMetaTable is set up
         lua_setmetatable(L, -2);
 
         // Add the Frame to the registry for later retrieval
@@ -229,7 +255,7 @@ public class Frame : Region
         lua_settable(L, -3); // table["__frame"] = userdata
 
         // Set the metatable for the table to handle method calls and property accesses
-        luaL_getmetatable(L, "TextureMetaTable"); // Push the TextureMetaTable
+        luaL_getmetatable(L, texture.GetMetatableName()); // Push the TextureMetaTable
         lua_setmetatable(L, -2); // setmetatable(table, "TextureMetaTable")
 
         Log.CreateTexture(texture);
@@ -244,7 +270,25 @@ public class Frame : Region
     // Frame:EnableDrawLayer(layer) - Allows display of the frame on the specified draw layer.
     // Frame:EnableGamePadButton([enable]) - Allows the receipt of gamepad button inputs for this frame.
     // Frame:EnableGamePadStick([enable]) - Allows the receipt of gamepad stick inputs for this frame.
-    // Frame:EnableKeyboard([enable]) - Allows this frame to receive keyboard input.
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Frame_EnableKeyboard
+    /// Frame:EnableKeyboard([enable]) - Allows this frame to receive keyboard input.
+    /// </summary>
+    /// <param name="enable"></param>
+    private void EnableKeyboard(bool enable)
+    {
+    }
+    private int internal_EnableKeyboard(lua_State L)
+    {
+        var frame = GetThis(L, 1) as Frame;
+        var enable = lua_toboolean(L, 2) != 0;
+
+        frame?.EnableKeyboard(enable);
+
+        return 0;
+    }
+    
     // Frame:ExecuteAttribute(attributeName, unpackedPrimitiveType, ...) : success, unpackedPrimitiveType, ...
     // Frame:GetAttribute(attributeName) : value - Returns the value of a secure frame attribute.
     // Frame:GetBoundsRect() : left, bottom, width, height - Returns the calculated bounding box of the frame and all of its descendant regions.
@@ -349,65 +393,59 @@ public class Frame : Region
     }
     private int internal_RegisterEvent(lua_State L)
     {
-        lock (API.API._luaLock)
+        try
         {
-            try
+            // Ensure there are exactly 2 arguments: frame, eventName
+            var argc = lua_gettop(L);
+            if (argc != 2)
             {
-                // Ensure there are exactly 2 arguments: frame, eventName
-                var argc = lua_gettop(L);
-                if (argc != 2)
-                {
-                    Log.ErrorL(L, "RegisterEvent requires exactly 2 arguments: frame, eventName.");
-                    return 0; // Unreachable
-                }
-
-                // Retrieve the Frame object from Lua
-                var frame = GetThis(L, 1) as Frame;
-                if (frame == null)
-                {
-                    Log.ErrorL(L, "RegisterEvent: Invalid Frame object.");
-                    return 0; // Unreachable
-                }
-
-                // Retrieve the eventName
-                if (!LuaHelpers.IsString(L, 2))
-                {
-                    Log.ErrorL(L, "RegisterEvent: 'eventName' must be a string.");
-                    return 0; // Unreachable
-                }
-
-                var eventName = lua_tostring(L, 2);
-
-                // Register the event on the Frame
-                var success = frame.RegisterEvent(eventName);
-
-                if (success)
-                {
-                    // Update the event-to-frames mapping
-                    lock (API.API._eventLock)
-                    {
-                        if (!API.UIObjects._eventToFrames.ContainsKey(eventName))
-                            API.UIObjects._eventToFrames[eventName] = [];
-
-                        API.UIObjects._eventToFrames[eventName].Add(frame);
-                    }
-
-                    Log.EventRegister(eventName, frame);
-                }
-                else
-                {
-                    Log.Warn($"[ref]Event [yellow]'{eventName}'[/] already registered for frame {frame}[/].");
-                }
-
-                // Push the success status to Lua
-                lua_pushboolean(L, success ? 1 : 0);
-                return 1;
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorL(L, "RegisterEvent encountered an error.");
+                Log.ErrorL(L, "RegisterEvent requires exactly 2 arguments: frame, eventName.");
                 return 0; // Unreachable
             }
+
+            // Retrieve the Frame object from Lua
+            var frame = GetThis(L, 1) as Frame;
+            if (frame == null)
+            {
+                Log.ErrorL(L, "RegisterEvent: Invalid Frame object.");
+                return 0; // Unreachable
+            }
+
+            // Retrieve the eventName
+            if (!LuaHelpers.IsString(L, 2))
+            {
+                Log.ErrorL(L, "RegisterEvent: 'eventName' must be a string.");
+                return 0; // Unreachable
+            }
+
+            var eventName = lua_tostring(L, 2);
+
+            // Register the event on the Frame
+            var success = frame.RegisterEvent(eventName);
+
+            if (success)
+            {
+                // Update the event-to-frames mapping
+                if (!UIObjects._eventToFrames.ContainsKey(eventName))
+                    UIObjects._eventToFrames[eventName] = [];
+
+                UIObjects._eventToFrames[eventName].Add(frame);
+
+                Log.EventRegister(eventName, frame);
+            }
+            else
+            {
+                Log.Warn($"[ref]Event [yellow]'{eventName}'[/] already registered for frame {frame}[/].");
+            }
+
+            // Push the success status to Lua
+            lua_pushboolean(L, success ? 1 : 0);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorL(L, "RegisterEvent encountered an error.");
+            return 0; // Unreachable
         }
     }
     
@@ -644,7 +682,24 @@ public class Frame : Region
         return 0;
     }
     
-    // Frame:SetPropagateKeyboardInput(propagate) #nocombat - Sets whether keyboard input is consumed by this frame or propagates to further frames.
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_Frame_SetPropagateKeyboardInput
+    /// Frame:SetPropagateKeyboardInput(propagate) #nocombat - Sets whether keyboard input is consumed by this frame or propagates to further frames.
+    /// </summary>
+    /// <param name="propagate"></param>
+    private void SetPropagateKeyboardInput(bool propagate)
+    {
+        
+    }
+    private int internal_SetPropagateKeyboardInput(lua_State L)
+    {
+        var frame = GetThis(L, 1) as Frame;
+        var propagate = lua_toboolean(L, 2) != 0;
+
+        frame?.SetPropagateKeyboardInput(propagate);
+
+        return 0;
+    }
     
     /// <summary>
     /// https://warcraft.wiki.gg/wiki/API_Frame_SetResizable
@@ -748,57 +803,51 @@ public class Frame : Region
     }
     public int internal_UnregisterAllEvents(lua_State L)
     {
-        lock (API.API._luaLock)
+        try
         {
-            try
+            // Ensure there is at least 1 argument: the Frame object
+            var argc = lua_gettop(L);
+            if (argc < 1)
             {
-                // Ensure there is at least 1 argument: the Frame object
-                var argc = lua_gettop(L);
-                if (argc < 1)
-                {
-                    Log.ErrorL(L, "UnregisterAllEvents requires at least 1 argument: frame.");
-                    return 0; // Unreachable
-                }
-
-                // Retrieve the Frame object from Lua
-                var frame = GetThis(L, 1) as Frame;
-                if (frame == null)
-                {
-                    Log.ErrorL(L, "UnregisterAllEvents: Invalid Frame object.");
-                    return 0; // Unreachable
-                }
-
-                // Get the list of events the frame is registered for
-                lock (_registeredEvents)
-                {
-                    List<string> registeredEvents = [.._registeredEvents];
-                    
-                    // Unregister all events from the Frame
-                    frame.UnregisterAllEvents();
-
-                    // Update the event-to-frames mapping
-                    lock (API.API._eventLock)
-                    {
-                        foreach (var eventName in registeredEvents)
-                        {
-                            if (API.UIObjects._eventToFrames.ContainsKey(eventName))
-                            {
-                                API.UIObjects._eventToFrames[eventName].Remove(frame);
-                                if (API.UIObjects._eventToFrames[eventName].Count == 0) API.UIObjects._eventToFrames.Remove(eventName);
-                            }
-                        }
-                    }
-                }
-
-                //AnsiConsole.WriteLine($"Frame unregistered from all events.");
-                // No return values
-                return 0;
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorL(L, "UnregisterAllEvents encountered an error.");
+                Log.ErrorL(L, "UnregisterAllEvents requires at least 1 argument: frame.");
                 return 0; // Unreachable
             }
+
+            // Retrieve the Frame object from Lua
+            var frame = GetThis(L, 1) as Frame;
+            if (frame == null)
+            {
+                Log.ErrorL(L, "UnregisterAllEvents: Invalid Frame object.");
+                return 0; // Unreachable
+            }
+
+            // Get the list of events the frame is registered for
+            lock (_registeredEvents)
+            {
+                List<string> registeredEvents = [.._registeredEvents];
+                
+                // Unregister all events from the Frame
+                frame.UnregisterAllEvents();
+
+                // Update the event-to-frames mapping
+                foreach (var eventName in registeredEvents)
+                {
+                    if (UIObjects._eventToFrames.ContainsKey(eventName))
+                    {
+                        UIObjects._eventToFrames[eventName].Remove(frame);
+                        if (UIObjects._eventToFrames[eventName].Count == 0) API.UIObjects._eventToFrames.Remove(eventName);
+                    }
+                }
+            }
+
+            //AnsiConsole.WriteLine($"Frame unregistered from all events.");
+            // No return values
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log.ErrorL(L, "UnregisterAllEvents encountered an error.");
+            return 0; // Unreachable
         }
     }
     
@@ -822,67 +871,61 @@ public class Frame : Region
     }
     private int internal_UnregisterEvent(lua_State L)
     {
-        lock (API.API._luaLock)
+        try
         {
-            try
+            // Ensure there are exactly 2 arguments: frame, eventName
+            var argc = lua_gettop(L);
+            if (argc != 2)
             {
-                // Ensure there are exactly 2 arguments: frame, eventName
-                var argc = lua_gettop(L);
-                if (argc != 2)
-                {
-                    Log.ErrorL(L, "UnregisterEvent requires exactly 2 arguments: frame, eventName.");
-                    return 0; // Unreachable
-                }
-
-                // Retrieve the Frame object from Lua
-                var frame = GetThis(L, 1) as Frame;
-                if (frame == null)
-                {
-                    Log.ErrorL(L, "UnregisterEvent: Invalid Frame object.");
-                    return 0; // Unreachable
-                }
-
-                // Retrieve the eventName
-                if (!LuaHelpers.IsString(L, 2))
-                {
-                    Log.ErrorL(L, "UnregisterEvent: 'eventName' must be a string.");
-                    return 0; // Unreachable
-                }
-
-                var eventName = lua_tostring(L, 2);
-
-                // Unregister the event on the Frame
-                var success = frame.UnregisterEvent(eventName);
-
-                if (success)
-                {
-                    // Update the event-to-frames mapping
-                    lock (API.API._eventLock)
-                    {
-                        if (eventName != null && UIObjects._eventToFrames.ContainsKey(eventName))
-                        {
-                            UIObjects._eventToFrames[eventName].Remove(frame);
-                            if (UIObjects._eventToFrames[eventName].Count == 0) UIObjects._eventToFrames.Remove(eventName);
-                        }
-                    }
-
-                    //AnsiConsole.WriteLine($"Frame unregistered for event '{eventName}'.");
-                }
-                else
-                {
-                    Log.Warn($"Frame was not registered for event '{eventName}'.");
-                }
-
-                // Push the success status to Lua
-                lua_pushboolean(L, success ? 1 : 0);
-                return 1;
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex);
-                Log.ErrorL(L, "UnregisterEvent encountered an error.");
+                Log.ErrorL(L, "UnregisterEvent requires exactly 2 arguments: frame, eventName.");
                 return 0; // Unreachable
             }
+
+            // Retrieve the Frame object from Lua
+            var frame = GetThis(L, 1) as Frame;
+            if (frame == null)
+            {
+                Log.ErrorL(L, "UnregisterEvent: Invalid Frame object.");
+                return 0; // Unreachable
+            }
+
+            // Retrieve the eventName
+            if (!LuaHelpers.IsString(L, 2))
+            {
+                Log.ErrorL(L, "UnregisterEvent: 'eventName' must be a string.");
+                return 0; // Unreachable
+            }
+
+            var eventName = lua_tostring(L, 2);
+
+            // Unregister the event on the Frame
+            var success = frame.UnregisterEvent(eventName);
+
+            if (success)
+            {
+                // Update the event-to-frames mapping
+                if (eventName != null && UIObjects._eventToFrames.ContainsKey(eventName))
+                {
+                    UIObjects._eventToFrames[eventName].Remove(frame);
+                    if (UIObjects._eventToFrames[eventName].Count == 0) UIObjects._eventToFrames.Remove(eventName);
+                }
+
+                //AnsiConsole.WriteLine($"Frame unregistered for event '{eventName}'.");
+            }
+            else
+            {
+                Log.Warn($"Frame was not registered for event '{eventName}'.");
+            }
+
+            // Push the success status to Lua
+            lua_pushboolean(L, success ? 1 : 0);
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            Log.Exception(ex);
+            Log.ErrorL(L, "UnregisterEvent encountered an error.");
+            return 0; // Unreachable
         }
     }
     
@@ -928,51 +971,15 @@ public class Frame : Region
         LuaHelpers.RegisterMethod(L, "CreateLine", internal_CreateLine);
         LuaHelpers.RegisterMethod(L, "SetFixedFrameStrata", internal_SetFixedFrameStrata);
         LuaHelpers.RegisterMethod(L, "SetFixedFrameLevel", internal_SetFixedFrameLevel);
-
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
+        LuaHelpers.RegisterMethod(L, "EnableKeyboard", internal_EnableKeyboard);
+        LuaHelpers.RegisterMethod(L, "SetPropagateKeyboardInput", internal_SetPropagateKeyboardInput);
+        
         // 6) pop
         lua_pop(L, 1);
     }
     
-    public override int internal_ObjectGC(lua_State L)
+    public override string ToString()
     {
-        // Retrieve the table
-        if (lua_istable(L, 1) == 0)
-        {
-            return 0;
-        }
-
-        // Retrieve the Frame userdata from the table's __frame field
-        lua_pushstring(L, "__frame");
-        lua_gettable(L, 1); // table.__frame
-        if (lua_islightuserdata(L, -1) == 0)
-        {
-            lua_pop(L, 1);
-            return 0;
-        }
-
-        IntPtr frameUserdataPtr = (IntPtr)lua_touserdata(L, -1);
-        lua_pop(L, 1); // Remove __frame userdata from the stack
-
-        // Retrieve the Frame instance
-        if (API.UIObjects._frameRegistry.TryGetValue(frameUserdataPtr, out var frame))
-        {
-            // Free the GCHandle
-            if (frame.Handle.IsAllocated)
-            {
-                frame.Handle.Free();
-            }
-
-            // Remove from registry
-            API.UIObjects._frameRegistry.Remove(frameUserdataPtr);
-
-            // Perform any additional cleanup if necessary
-            // Example: frame.Dispose();
-        }
-
-        return 0;
+        return $"{GetName()}";
     }
 }

@@ -35,11 +35,7 @@ public static class C_ChatInfo
             return 0; // Unreachable
         }
 
-        bool added;
-        lock (_prefixLock)
-        {
-            added = _registeredPrefixes.Add(prefix);
-        }
+        bool added = _registeredPrefixes.Add(prefix);
 
         /*
         if (added)

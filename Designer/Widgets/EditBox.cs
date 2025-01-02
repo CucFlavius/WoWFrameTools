@@ -344,11 +344,7 @@ public class EditBox : Frame, IFontInstance
         LuaHelpers.RegisterMethod(L, "SetJustifyH", internal_SetJustifyH);
         LuaHelpers.RegisterMethod(L, "SetJustifyV", internal_SetJustifyV);
         LuaHelpers.RegisterMethod(L, "SetTextColor", internal_SetTextColor);
-
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
+        
         // 6) pop
         lua_pop(L, 1);
     }

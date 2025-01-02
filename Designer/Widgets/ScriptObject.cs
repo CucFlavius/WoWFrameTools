@@ -16,7 +16,7 @@ namespace WoWFrameTools.Widgets
         protected FrameScriptObject? _parent;
         //private string? _parentKey;
         
-        private readonly Dictionary<string, List<Widgets.ScriptHandler>?> _scripts;
+        private readonly Dictionary<string, List<ScriptHandler>?> _scripts;
         private readonly Dictionary<string, int> _scriptRefs;
 
         protected ScriptObject(string objectType, string? name, FrameScriptObject? parent) : base(objectType, name)
@@ -127,7 +127,7 @@ namespace WoWFrameTools.Widgets
         /// <exception cref="NotImplementedException"></exception>
         public ScriptHandler GetScript(string scriptTypeName, string? bindingType = null)
         {
-            throw new NotImplementedException();
+            return _scripts.ContainsKey(scriptTypeName) ? _scripts[scriptTypeName][0] : null;
         }
         private int internal_GetScript(lua_State L)
         {
@@ -183,6 +183,8 @@ namespace WoWFrameTools.Widgets
         }
         public int internal_HookScript(lua_State L)
         {
+            //return 0;
+            
             try
             {
                 // Ensure there are exactly 3 arguments: frame, scriptTypeName, handler
@@ -224,32 +226,29 @@ namespace WoWFrameTools.Widgets
                 // Assign the script handler
                 frame.HookScript(scriptTypeName, (f, eventName, extraParam) =>
                 {
-                    lock (API.API._luaLock) // Ensure thread-safe access to Lua state
+                    try
                     {
-                        try
+                        // Retrieve the Lua function from the registry
+                        lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex);
+
+                        // Retrieve the userdata from the registry using LuaRegistryRef
+                        lua_rawgeti(L, LUA_REGISTRYINDEX, f.LuaRegistryRef); // Push 'self' userdata
+
+                        // Push 'eventName'
+                        lua_pushstring(L, eventName); // Push 'event'
+
+                        // Call the Lua function with 2 arguments, 0 results
+                        if (lua_pcall(L, 2, 0, 0) != 0)
                         {
-                            // Retrieve the Lua function from the registry
-                            lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex);
-
-                            // Retrieve the userdata from the registry using LuaRegistryRef
-                            lua_rawgeti(L, LUA_REGISTRYINDEX, f.LuaRegistryRef); // Push 'self' userdata
-
-                            // Push 'eventName'
-                            lua_pushstring(L, eventName); // Push 'event'
-
-                            // Call the Lua function with 2 arguments, 0 results
-                            if (lua_pcall(L, 2, 0, 0) != 0)
-                            {
-                                // Retrieve and log the error message
-                                var error = lua_tostring(L, -1);
-                                Console.WriteLine($"Lua Error in HookScript '{scriptTypeName}': {error}");
-                                lua_pop(L, 1); // Remove error message
-                            }
+                            // Retrieve and log the error message
+                            var error = lua_tostring(L, -1);
+                            Console.WriteLine($"Lua Error in HookScript '{scriptTypeName}': {error}");
+                            lua_pop(L, 1); // Remove error message
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"Exception while executing HookScript '{scriptTypeName}': {ex.Message}");
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Exception while executing HookScript '{scriptTypeName}': {ex.Message}");
                     }
                 }, refIndex); // Pass the refIndex to manage references
 
@@ -293,22 +292,24 @@ namespace WoWFrameTools.Widgets
 
             if (!_scripts.ContainsKey(scriptTypeName)) _scripts[scriptTypeName] = [];
 
-            if (_scripts[scriptTypeName]!.Count > 0)
+            if (_scripts[scriptTypeName].Count > 0)
                 // Replace the first (primary) handler
-                _scripts[scriptTypeName]![0] = script;
+                _scripts[scriptTypeName][0] = script;
             else
-                _scripts[scriptTypeName]?.Add(script);
+                _scripts[scriptTypeName].Add(script);
         }
         public int internal_SetScript(lua_State L)
         {
+            //return 0;
+            
             // Ensure there are at least 2 arguments: Frame and scriptTypeName
             var argc = lua_gettop(L);
-            if (argc < 2)
+            if (argc < 3)
             {
                 Log.ErrorL(L, "SetScript requires at least 2 arguments: frame and scriptTypeName.");
                 return 0; // Unreachable
             }
-
+            
             // Validate that the second argument is a string
             if (!LuaHelpers.IsString(L, 2))
             {
@@ -330,59 +331,52 @@ namespace WoWFrameTools.Widgets
                     // Create a reference to the Lua function
                     lua_pushvalue(L, 3); // Push the function to the top of the stack
                     var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
-
+                    
                     // Retrieve the Frame object
                     var frame = GetThis(L, 1) as ScriptObject;
 
+                    
+                    //AnsiConsole.MarkupLine($"[yellow]Setting script '{scriptTypeName}' for frame {frame}[/]");
+                    
                     // Assign the script handler with proper 'self' and 'event' parameters
-                    frame?.SetScript(scriptTypeName, (f, eventName, extraParam) =>
+                    frame.SetScript(scriptTypeName, (f, eventName, extraParam) =>
                     {
-                        lock (API.API._luaLock) // Ensure thread-safe access to Lua state
+                        try
                         {
-                            try
+                            //AnsiConsole.MarkupLine($"[yellow]Handling event '{eventName}' with param '{extraParam}' for frame {f}[/]");
+
+                            // Retrieve the Lua function from the registry
+                            lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex);
+
+                            // Retrieve the userdata from the registry using LuaRegistryRef
+                            lua_rawgeti(L, LUA_REGISTRYINDEX, f.LuaRegistryRef); // Push 'self' userdata
+
+                            // Push 'eventName'
+                            lua_pushstring(L, eventName); // Push 'event'
+
+                            // Push 'extraParam' if present
+                            if (!string.IsNullOrEmpty(extraParam)) lua_pushstring(L, extraParam);
+
+                            // Determine the number of arguments (2 or 3)
+                            var args = string.IsNullOrEmpty(extraParam) ? 2 : 3;
+                            
+                            // Call the Lua function with 'self', 'eventName', and optionally 'extraParam'
+                            var status = lua_pcall(L, args, 0, 0);
+
+                            if (status != 0)
                             {
-                                //AnsiConsole.MarkupLine($"[yellow]Handling event '{eventName}' with param '{extraParam}' for frame {f}[/]");
-
-                                // Retrieve the Lua function from the registry
-                                lua_rawgeti(L, LUA_REGISTRYINDEX, refIndex);
-
-                                // Retrieve the userdata from the registry using LuaRegistryRef
-                                lua_rawgeti(L, LUA_REGISTRYINDEX, f.LuaRegistryRef); // Push 'self' userdata
-
-                                // Push 'eventName'
-                                lua_pushstring(L, eventName); // Push 'event'
-
-                                // Push 'extraParam' if present
-                                if (!string.IsNullOrEmpty(extraParam)) lua_pushstring(L, extraParam);
-
-                                // Determine the number of arguments (2 or 3)
-                                var args = string.IsNullOrEmpty(extraParam) ? 2 : 3;
-
-                                // Log the stack state before pcall
-                                var stackBefore = lua_gettop(L);
-                                //AnsiConsole.MarkupLine($"[blue]Lua stack before pcall: {stackBefore}[/]");
-
-                                // Call the Lua function with 'self', 'eventName', and optionally 'extraParam'
-                                var status = lua_pcall(L, args, 0, 0);
-
-                                // Log the stack state after pcall
-                                var stackAfter = lua_gettop(L);
-                                //AnsiConsole.MarkupLine($"[blue]Lua stack after pcall: {stackAfter}[/]");
-
-                                if (status != 0)
-                                {
-                                    // Retrieve and log the error message
-                                    Log.ErrorL(L, $"Error in event '{eventName}': {lua_tostring(L, -1)}");
-                                    lua_pop(L, 1);
-                                }
-                                //AnsiConsole.MarkupLine($"[green]Successfully handled event '{eventName}'.[/]");
+                                // Retrieve and log the error message
+                                var errorMessage = lua_tostring(L, -1);
+                                var stackTrace = lua_tostring(L, -2); // Optional if available
+                                Log.ErrorL(L, $"Error in event '{eventName}': {errorMessage}. StackTrace {stackTrace}");
+                                lua_pop(L, 1);
                             }
-                            catch (Exception ex)
-                            {
-                                Log.Error($"Exception while executing script [green]'{scriptTypeName}'[/] event [yellow]{eventName}[/]");
-                                Log.Exception(L, ex, "SetScript");
-                                //Log.Exception(ex);
-                            }
+                            //AnsiConsole.MarkupLine($"[green]Successfully handled event '{eventName}'.[/]");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error($"Exception while executing script [green]'{scriptTypeName}'[/] event [yellow]{eventName}[/] for [yellow]{f}[/]");
+                            Log.Exception(L, ex, "SetScript");
                         }
                     }, refIndex); // Pass the refIndex to manage references
 
@@ -411,7 +405,7 @@ namespace WoWFrameTools.Widgets
         
         // ----------- Virtual Registration ---------------
         
-        public override string GetMetatableName() => "UIObjectMetaTable";
+        public override string GetMetatableName() => "ScriptObjectMetaTable";
         
         public override void RegisterMetaTable(lua_State L)
         {
@@ -441,10 +435,6 @@ namespace WoWFrameTools.Widgets
             LuaHelpers.RegisterMethod(L, "HasScript", internal_HasScript);
             LuaHelpers.RegisterMethod(L, "HookScript", internal_HookScript);
             LuaHelpers.RegisterMethod(L, "SetScript", internal_SetScript);
-            
-            // Optional __gc
-            lua_pushcfunction(L, internal_ObjectGC);
-            lua_setfield(L, -2, "__gc");
 
             // 6) pop
             lua_pop(L, 1);

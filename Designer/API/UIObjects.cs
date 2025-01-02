@@ -13,6 +13,7 @@ public static class UIObjects
     public static readonly Dictionary<IntPtr, Frame> _frameRegistry = new();
     public static readonly Dictionary<IntPtr, Texture> _textureRegistry = new();
     public static readonly Dictionary<IntPtr, FontString> _fontStringRegistry = new();
+    public static readonly Dictionary<IntPtr, ModelSceneActor> _actorRegistry = new();
     public static readonly Dictionary<IntPtr, Line> _lineRegistry = new();
     public static readonly Dictionary<string, HashSet<Frame>> _eventToFrames = new();
 
@@ -97,13 +98,13 @@ public static class UIObjects
             }
 
             // 4. Create a new Frame instance
-            var frame = frameType switch
+            var frame = frameType.ToLower() switch
             {
-                "Frame" => new Frame(frameType, name, parentFrame, template, id),
-                "Button" => new Button(name, parentFrame, template, id),
-                "EditBox" => new EditBox(name, parentFrame, template, id),
-                "GameTooltip" => new GameTooltip(name, parentFrame, template, id),
-                "ModelScene" => new ModelScene(name, parentFrame, template, id),
+                "frame" => new Frame(frameType, name, parentFrame, template, id),
+                "button" => new Button(name, parentFrame, template, id),
+                "editbox" => new EditBox(name, parentFrame, template, id),
+                "gametooltip" => new GameTooltip(name, parentFrame, template, id),
+                "modelscene" => new ModelScene(name, parentFrame, template, id),
                 _ => throw new NotImplementedException($"Unsupported frame type: {frameType}")
             };
 
@@ -112,22 +113,22 @@ public static class UIObjects
             var handlePtr = GCHandle.ToIntPtr(handle);
 
             // 6. Create userdata with the size of IntPtr
-            var frameUserdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+            var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
 
             // Write the handlePtr into the userdata memory
-            Marshal.WriteIntPtr(frameUserdataPtr, handlePtr);
+            Marshal.WriteIntPtr(userdataPtr, handlePtr);
 
             // 7. Set the metatable for the userdata
             luaL_getmetatable(L, frame.GetMetatableName()); // Ensure FrameMetaTable is set up
             lua_setmetatable(L, -2);
 
             // 8. Add the Frame to the registry for later retrieval
-            _frameRegistry[frameUserdataPtr] = frame;
+            _frameRegistry[userdataPtr] = frame;
             if (name != null)
                 _nameToFrameRegistry[name] = frame;
 
             // Assign the userdataPtr and LuaRegistryRef to the Frame instance
-            frame.UserdataPtr = frameUserdataPtr;
+            frame.UserdataPtr = userdataPtr;
 
             // Create a reference to the userdata in the Lua registry
             lua_pushvalue(L, -1); // Push the userdata
@@ -140,7 +141,7 @@ public static class UIObjects
 
             // Set the Frame userdata in the table with a hidden key
             lua_pushstring(L, "__frame"); // Key
-            lua_pushlightuserdata(L, (UIntPtr)frameUserdataPtr); // Value (light userdata)
+            lua_pushlightuserdata(L, (UIntPtr)userdataPtr); // Value (light userdata)
             lua_settable(L, -3); // table["__frame"] = userdata
 
             // Set the metatable for the table to handle method calls and property accesses

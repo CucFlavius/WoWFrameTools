@@ -70,11 +70,7 @@ public class Minimap : Frame
         // 4) Bind methods
         //LuaHelpers.RegisterMethod(L, "RegisterEvent", internal_RegisterEvent);
         //LuaHelpers.RegisterMethod(L, "UnregisterAllEvents", internal_UnregisterAllEvents);
-
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
+        
         // 5) pop
         lua_pop(L, 1);
     }

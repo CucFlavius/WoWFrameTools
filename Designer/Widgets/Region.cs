@@ -192,10 +192,6 @@ public class Region : ScriptRegion
         LuaHelpers.RegisterMethod(L, "GetEffectiveScale", internal_GetEffectiveScale);
         LuaHelpers.RegisterMethod(L, "SetAlpha", internal_SetAlpha);
 
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
         // 6) pop
         lua_pop(L, 1);
     }

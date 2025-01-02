@@ -125,28 +125,8 @@ namespace WoWFrameTools.Widgets
             LuaHelpers.RegisterMethod(L, "IsObjectType", internal_IsObjectType);
             LuaHelpers.RegisterMethod(L, "SetForbidden", internal_SetForbidden);
 
-            // 4) If you want a GC metamethod
-            lua_pushcfunction(L, (state) => internal_ObjectGC(state));
-            lua_setfield(L, -2, "__gc");
-
-            // 5) pop
+            // 4) pop
             lua_pop(L, 1);
-        }
-        public virtual int internal_ObjectGC(lua_State L)
-        {
-            // standard GC approach
-            IntPtr userdataPtr = (IntPtr)lua_touserdata(L, 1);
-            if (userdataPtr != IntPtr.Zero)
-            {
-                IntPtr handlePtr = Marshal.ReadIntPtr(userdataPtr);
-                if (handlePtr != IntPtr.Zero)
-                {
-                    GCHandle handle = GCHandle.FromIntPtr(handlePtr);
-                    if (handle.IsAllocated)
-                        handle.Free();
-                }
-            }
-            return 0;
         }
 
         /// <summary>
@@ -155,42 +135,6 @@ namespace WoWFrameTools.Widgets
         /// </summary>
         public FrameScriptObject? GetThis(lua_State L, int index)
         {
-            /*
-            var metaName = GetMetatableName();
-            luaL_getmetatable(L, metaName);
-            lua_getmetatable(L, index);
-            
-            if (lua_isuserdata(L, index) != 0)
-            {
-                IntPtr userdataPtr = (IntPtr)lua_touserdata(L, index);
-                if (UIObjects._frameRegistry.TryGetValue(userdataPtr, out var frame))
-                {
-                    return frame;
-                }
-            }
-            else if (lua_istable(L, index) != 0)
-            {
-                // Assume the table has a '__frame' field containing the userdata
-                lua_pushstring(L, "__frame");      // Push key '__frame'
-                lua_gettable(L, index);             // Get table['__frame']
-                if (lua_islightuserdata(L, -1) != 0)
-                {
-                    IntPtr userdataPtr = (IntPtr)lua_touserdata(L, -1);
-                    lua_pop(L, 1);                   // Remove '__frame' value from stack
-                    if (UIObjects._frameRegistry.TryGetValue(userdataPtr, out var frame))
-                    {
-                        return frame;
-                    }
-                }
-                else
-                {
-                    lua_pop(L, 1);                   // Remove '__frame' value from stack
-                }
-            }
-
-            return null;
-            */
-            
             // 1) Check the correct metatable
             var metaName = GetMetatableName();
             luaL_getmetatable(L, metaName);

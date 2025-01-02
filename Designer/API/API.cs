@@ -9,9 +9,6 @@ namespace WoWFrameTools.API;
 
 public static class API
 {
-    public static readonly object _eventLock = new();
-    public static readonly object _luaLock = new();
-    
     public static Toc? _toc;
     
     public static Toc LoadToc(string path)
@@ -97,20 +94,17 @@ public static class API
     
     public static void TriggerEvent(lua_State L, string eventName, string? param = null)
     {
-        lock (API._eventLock)
+        if (UIObjects._eventToFrames.TryGetValue(eventName, out var frames))
         {
-            if (UIObjects._eventToFrames.TryGetValue(eventName, out var frames))
+            foreach (var frame in frames.ToList()) // Use ToList to create a copy for safe iteration
             {
-                foreach (var frame in frames.ToList()) // Use ToList to create a copy for safe iteration
-                {
-                    Log.EventTrigger(eventName, param, frame);
-                    frame.TriggerEvent(eventName, param);
-                }
+                Log.EventTrigger(eventName, param, frame);
+                frame.TriggerEvent(eventName, param);
             }
-            else
-            {
-                AnsiConsole.WriteLine($"No frames registered for event '{eventName}'.");
-            }
+        }
+        else
+        {
+            AnsiConsole.WriteLine($"No frames registered for event '{eventName}'.");
         }
     }
     

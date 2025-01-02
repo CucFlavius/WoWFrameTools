@@ -255,11 +255,7 @@ public class Button : Frame
         LuaHelpers.RegisterMethod(L, "SetNormalTexture", internal_SetNormalTexture);
         LuaHelpers.RegisterMethod(L, "SetPushedTexture", internal_SetPushedTexture);
         LuaHelpers.RegisterMethod(L, "RegisterForClicks", internal_RegisterForClicks);
-
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
+        
         // 6) pop
         lua_pop(L, 1);
     }

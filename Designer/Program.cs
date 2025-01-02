@@ -9,6 +9,8 @@ namespace WoWFrameTools;
 
 internal class Program
 {
+    private static lua_State L { get; set; }
+    
     private static async Task Main(string[] args)
     {
         const string addonPath = @"D:\Games\World of Warcraft\_retail_\Interface\AddOns\scenemachine";
@@ -22,7 +24,7 @@ internal class Program
             await ProcessFileRecursive(absolutePath, addonPath, luaFiles);
         }
 
-        var L = luaL_newstate();
+        L = luaL_newstate();
         luaL_openlibs(L);
         ProcessLuaFile(L, "Compat.lua", "");
 
@@ -34,7 +36,11 @@ internal class Program
         new Line().RegisterMetaTable(L);
         new Minimap().RegisterMetaTable(L);
         new Texture().RegisterMetaTable(L);
+        new Model().RegisterMetaTable(L);
         new ModelScene().RegisterMetaTable(L);
+        new PlayerModel().RegisterMetaTable(L);
+        new DressUpModel().RegisterMetaTable(L);
+        new ModelSceneActor().RegisterMetaTable(L);
         
         LuaHelpers.RegisterGlobalMethod(L, "CreateFrame", UIObjects.CreateFrame);
         LuaHelpers.RegisterGlobalMethod(L, "GetTime", Game.GetTime);
@@ -94,7 +100,21 @@ internal class Program
         API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
         API.API.TriggerEvent(L, "PLAYER_LOGIN");
         API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
-        
+        // try
+        // {
+        //     var result = luaL_dostring(L, "SceneMachine.Start()");
+        //     if (result != 0) // Lua error
+        //     {
+        //         var errorMessage = lua_tostring(L, -1);
+        //         AnsiConsole.WriteLine($"Lua Error: {errorMessage}");
+        //         lua_pop(L, 1); // Remove the error from the stack
+        //     }
+        // }
+        // catch (Exception e)
+        // {
+        //     AnsiConsole.WriteException(e);
+        // }
+
         // Save the saved variables
         SavedVariables.SaveSavedVariables(L, toc);
 
@@ -103,7 +123,7 @@ internal class Program
 
         AnsiConsole.WriteLine("Lua state closed. Application exiting.");
     }
-
+    
     private static bool ProcessLuaFile(lua_State L, string luaFile, string relativePath)
     {
         try

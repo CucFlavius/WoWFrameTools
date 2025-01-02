@@ -205,4 +205,9 @@ public static class Log
             return;
         AnsiConsole.MarkupLine($"[green]Created Line: {line}[/]");
     }
+
+    public static void CreateActor(ModelSceneActor actor)
+    {
+        AnsiConsole.MarkupLine($"[green]Created ModelSceneActor: {actor}[/]");
+    }
 }

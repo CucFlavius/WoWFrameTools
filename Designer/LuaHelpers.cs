@@ -267,6 +267,10 @@ public static class LuaHelpers
         {
             return fontString;
         }
+        else if (API.UIObjects._actorRegistry.TryGetValue(userdataPtr, out var actor))
+        {
+            return actor;
+        }
         /*
         else if (API.UIObjects._nameToFrameRegistry.TryGetValue(userdataPtr, out var namedFrame))
         {

@@ -1,4 +1,5 @@
-﻿using LuaNET.Lua51;
+﻿using System.Runtime.InteropServices;
+using LuaNET.Lua51;
 using WoWFrameTools.API;
 using static LuaNET.Lua51.Lua;
 
@@ -6,12 +7,70 @@ namespace WoWFrameTools.Widgets;
 
 public class ModelScene : Frame
 {
+    private readonly List<ModelSceneActor> _actors;
+
     public ModelScene(string? name = null, Frame? parent = null, string? templateName = null, int id = 0)
         : base("ModelScene", name, parent, templateName, id)
     {
+        _actors = [];
     }
     
-    // ModelScene:CreateActor([name, template]) : actor
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_ModelScene_CreateActor
+    /// ModelScene:CreateActor([name, template]) : actor
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="template"></param>
+    private ModelSceneActor CreateActor(string? name = null, string? template = null)
+    {
+        var actor = new ModelSceneActor(name, template);
+        _actors.Add(actor);
+        return actor;
+    }
+    private int internal_CreateActor(lua_State L)
+    {
+        var frame = GetThis(L, 1) as ModelScene;
+
+        var argc = lua_gettop(L);
+
+        string? name = null;
+        string? template = null;
+
+        if (argc > 1) name = lua_tostring(L, 2);
+        if (argc > 2) template = lua_tostring(L, 3);
+
+        var actor = frame?.CreateActor(name, template);
+
+        // Allocate a GCHandle to prevent the Frame from being garbage collected
+        var handle = GCHandle.Alloc(actor);
+        var handlePtr = GCHandle.ToIntPtr(handle);
+
+        // Create userdata with the size of IntPtr
+        var userdataPtr = (IntPtr)lua_newuserdata(L, (UIntPtr)IntPtr.Size);
+
+        // Write the handlePtr into the userdata memory
+        Marshal.WriteIntPtr(userdataPtr, handlePtr);
+
+        // Set the metatable for the userdata
+        luaL_getmetatable(L, "ModelSceneActorMetaTable");
+        lua_setmetatable(L, -2);
+
+        // Add the Frame to the registry for later retrieval
+        UIObjects._actorRegistry[userdataPtr] = actor;
+
+        // Assign the userdataPtr and LuaRegistryRef to the Frame instance
+        actor.UserdataPtr = userdataPtr;
+
+        // Create a reference to the userdata in the registry
+        lua_pushvalue(L, -1); // Push the userdata
+        var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
+        actor.LuaRegistryRef = refIndex;
+
+        Log.CreateActor(actor);
+        
+        return 1;
+    }
+    
     // ModelScene:GetActorAtIndex(index) : actor
     // ModelScene:GetCameraFarClip() : farClip
     // ModelScene:GetCameraFieldOfView() : fov
@@ -339,11 +398,8 @@ public class ModelScene : Frame
         LuaHelpers.RegisterMethod(L, "SetFogColor", internal_SetFogColor);
         LuaHelpers.RegisterMethod(L, "SetFogFar", internal_SetFogFar);
         LuaHelpers.RegisterMethod(L, "SetFogNear", internal_SetFogNear);
-
-        // Optional __gc
-        lua_pushcfunction(L, internal_ObjectGC);
-        lua_setfield(L, -2, "__gc");
-
+        LuaHelpers.RegisterMethod(L, "CreateActor", internal_CreateActor);
+        
         // 6) pop
         lua_pop(L, 1);
     }
