@@ -10,7 +10,6 @@ public class Frame : Region
     public readonly HashSet<string> _registeredEvents;
     public readonly HashSet<string> _registeredForDragButtons;
     
-    public readonly List<Frame?> _children;
     public readonly List<Texture> _textures;
     public readonly List<FontString> _fontStrings;
     public readonly List<Line> _lines;
@@ -23,7 +22,6 @@ public class Frame : Region
         _registeredEvents = [];
         _registeredForDragButtons = [];
         
-        _children = [];
         _textures = [];
         _fontStrings = [];
         _lines = [];
@@ -106,7 +104,7 @@ public class Frame : Region
     /// Frame:GetChildren() : child1, ... - Returns a list of child frames belonging to the frame.
     /// </summary>
     /// <returns></returns>
-    public List<Frame> GetChildren()
+    public List<ScriptObject> GetChildren()
     {
         return this._children!;
     }

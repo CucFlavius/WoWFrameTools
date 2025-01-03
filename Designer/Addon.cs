@@ -13,10 +13,11 @@ namespace WoWFrameTools;
 
 public class Addon
 {
-    private Toc? _toc;
+    public Toc? toc;
     private readonly string _addonPath;
     private readonly string _tocFilePath;
-    private volatile bool _isLoaded = false;
+    public volatile bool isLoaded = false;
+    public float loadPercentage = 0.0f;
     private float _elapsedTime = 0.0f;
     
     public Addon(string path)
@@ -28,11 +29,16 @@ public class Addon
 
     public async Task Load(lua_State L)
     {
-        _toc = new Toc(_tocFilePath);
-        API.API._toc = _toc;        // Assign the toc global
+        toc = new Toc(_tocFilePath);
+        API.API._toc = toc;        // Assign the toc global
 
-        var luaFiles = new List<string>();
-        foreach (var codePath in _toc.CodePaths)
+        var luaFiles = new List<string>
+        {
+            "Compat.lua",
+            "hooksecurefunc.lua"
+        };
+
+        foreach (var codePath in toc.CodePaths)
         {
             var absolutePath = Path.GetFullPath(Path.Combine(_addonPath, codePath));
             await ProcessFileRecursive(absolutePath, _addonPath, luaFiles);
@@ -40,9 +46,8 @@ public class Addon
 
         var thread = new Thread(() =>
         {
-            _isLoaded = false;
+            isLoaded = false;
             
-            ProcessLuaFile(L, "Compat.lua", "");
             RegisterMetatables(L);
             RegisterGlobalMethods(L);
             RegisterGlobalClasses(L);
@@ -53,15 +58,18 @@ public class Addon
             UIObjects.Minimap = new Minimap("Minimap", UIObjects.UIParent, null, 0);
             UIObjects.CreateGlobalFrame(L, UIObjects.Minimap);
 
-            SavedVariables.RegisterSavedVariables(L, _toc);
-            ProcessLuaFile(L, "hooksecurefunc.lua", "");
+            SavedVariables.RegisterSavedVariables(L, toc);
 
-            foreach (var luaFile in luaFiles)
+            for (var index = 0; index < luaFiles.Count; index++)
             {
+                loadPercentage = (float) index / luaFiles.Count;
+                
+                var luaFile = luaFiles[index];
+
                 // get path relative to addonPath
                 var relativePath = Path.GetRelativePath(_addonPath, luaFile);
 
-                if (ProcessLuaFile(L, luaFile, relativePath)) break;
+                if (ProcessLuaFile(L, luaFile, relativePath)) continue;
             }
 
             // Start the events
@@ -70,7 +78,7 @@ public class Addon
             API.API.TriggerEvent(L, "PLAYER_LOGIN");
             API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
             
-            _isLoaded = true;
+            isLoaded = true;
         });
         
         thread.Start();
@@ -231,13 +239,13 @@ public class Addon
 
     public void SaveVariables(lua_State L)
     {
-        if (_toc != null)
-            SavedVariables.SaveSavedVariables(L, _toc);
+        if (toc != null)
+            SavedVariables.SaveSavedVariables(L, toc);
     }
 
     public void Update(float deltaTimeF)
     {
-        if (!_isLoaded)
+        if (!isLoaded)
             return;
         
         API.API._frameRate = 1.0f / deltaTimeF;

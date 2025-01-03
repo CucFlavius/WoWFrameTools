@@ -47,6 +47,15 @@ public static class ScriptRegion
         frame?.Hide();
         return 0;
     }
+
+    public static int internal_IsVisible(lua_State L)
+    {
+        var frame = GetThis(L, 1);
+        var isVisible = frame?.IsVisible() ?? false;
+
+        lua_pushboolean(L, isVisible ? 1 : 0);
+        return 1;
+    }
     
     public static int internal_SetParent(lua_State L)
     {
@@ -271,6 +280,7 @@ public static class ScriptRegion
         LuaHelpers.RegisterMethod(L, "SetParent", Internal.ScriptRegion.internal_SetParent);
         LuaHelpers.RegisterMethod(L, "GetHeight", Internal.ScriptRegion.internal_GetHeight);
         LuaHelpers.RegisterMethod(L, "GetWidth", Internal.ScriptRegion.internal_GetWidth);
+        LuaHelpers.RegisterMethod(L, "IsVisible", Internal.ScriptRegion.internal_IsVisible);
 
         // IScriptRegionResizing
         LuaHelpers.RegisterMethod(L, "SetPoint", Internal.ScriptRegion.internal_SetPoint);

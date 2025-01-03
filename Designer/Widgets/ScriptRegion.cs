@@ -98,7 +98,13 @@ namespace WoWFrameTools.Widgets
         // ScriptRegion:IsProtected() : isProtected, isProtectedExplicitly - Returns whether the region is currently protected.
         // ScriptRegion:IsRectValid() : isValid - Returns true if the region can be positioned on the screen.
         // ScriptRegion:IsShown() : isShown - Returns true if the region should be shown; it depends on the parents if it's visible.
+        
         // ScriptRegion:IsVisible() : isVisible - Returns true if the region and its parents are shown.
+        public bool IsVisible()
+        {
+            return _visible;
+        }
+        
         // ScriptRegion:SetMouseClickEnabled([enabled]) - Sets whether the region should receive mouse clicks.
         // ScriptRegion:SetMouseMotionEnabled([enabled]) - Sets whether the region should receive mouse hover events.
         
@@ -108,7 +114,23 @@ namespace WoWFrameTools.Widgets
         /// </summary>
         public void SetParent(ScriptRegion? parent)
         {
+            if (_parent != null)
+            {
+                if (_parent is ScriptObject frame)
+                {
+                    frame._children.Remove(this as Frame);
+                }
+            }
+            
             _parent = parent;
+            
+            if (parent != null)
+            {
+                if (parent is ScriptObject frame)
+                {
+                    frame._children.Add(this as Frame);
+                }
+            }
         }
         
         // ScriptRegion:SetPassThroughButtons([button1, ...]) #nocombat - Allows the region to propagate mouse clicks to underlying regions or the world frame.

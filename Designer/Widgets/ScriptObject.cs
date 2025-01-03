@@ -64,16 +64,20 @@ namespace WoWFrameTools.Widgets
     /// </summary>
     public class ScriptObject : FrameScriptObject
     {
-        protected FrameScriptObject? _parent;
+        public ScriptObject? _parent;
+        public readonly List<ScriptObject?> _children;
+        
         //private string? _parentKey;
         private readonly Dictionary<string, List<ScriptHandler>?> _scripts;
         private readonly Dictionary<string, int> _scriptRefs;
 
-        protected ScriptObject(string objectType, string? name, FrameScriptObject? parent) : base(objectType, name)
+        protected ScriptObject(string objectType, string? name, ScriptObject? parent) : base(objectType, name)
         {
             _scripts = [];
             _scriptRefs = [];
+            _children = [];
             _parent = parent;
+            parent?._children.Add(this);
         }
 
         /// <summary>

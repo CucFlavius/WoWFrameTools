@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using System.Numerics;
+using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
@@ -8,13 +9,16 @@ namespace WoWFrameTools;
 
 public class UI
 {
+    private Designer _designer;
     private GL _gl;
     private ImGuiController? _controller;
     private readonly List<Menu> _menus;
-    private MainMenu? _mainMenu;
+    private readonly MainMenu? _mainMenu;
+    private string _layoutFilePath = "imgui_layout.ini";
     
-    public UI()
+    public UI(Designer designer)
     {
+        _designer = designer;
         _menus = [];
         _mainMenu = new MainMenu(this);
     }
@@ -23,8 +27,28 @@ public class UI
     {
         _gl = gl;
         _controller = new ImGuiController(gl, window, inputContext);
+        
+        // Enable docking
+        var io = ImGui.GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+        
         SetImguiStyle();
+        
         _mainMenu?.Load();
+        
+        LoadLayout();
+    }
+    
+    private void SaveLayout()
+    {
+        // Save the current ImGui layout to a file
+        ImGui.SaveIniSettingsToDisk(_layoutFilePath);
+    }
+    
+    private void LoadLayout()
+    {
+        // Load the ImGui layout from a file
+        ImGui.LoadIniSettingsFromDisk(_layoutFilePath);
     }
 
     public void AddMenu(Menu menu)
@@ -40,15 +64,94 @@ public class UI
     
     public void Render()
     {
-        foreach (var menu in _menus)
+        // Render UI components
+        if (!_designer.addon.isLoaded)
         {
-            menu.Render();
+            // Show loading screen
+            ImGui.SetWindowSize(new Vector2(_designer.window.Size.X, _designer.window.Size.Y));
+            ImGui.Begin("Loading", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse);
+            ImGui.Text("Loading...");
+            ImGui.ProgressBar(_designer.addon.loadPercentage, new System.Numerics.Vector2(300, 0), "");
+            ImGui.End();
+        }
+        
+        // Docking
+        CreateDockingSpaceAndMainMenu();
+        
+        // Rest of the UI
+        if (_designer.addon.isLoaded)
+        {
+            ImGui.Begin("Addon");
+            ImGui.Text($"{_designer.addon.toc?.Title}");
+            ImGui.End();
+
+            RenderHierarchy(_designer.addon);
         }
 
-        // Render UI components
-        ImGui.ShowDemoWindow();
-        
         _controller?.Render();
+    }
+
+    private void RenderFrameHierarchy(Widgets.ScriptObject? frameScriptObject)
+    {
+        if (frameScriptObject == null)
+            return;
+        
+        var frameName = frameScriptObject.GetName();
+        if (string.IsNullOrEmpty(frameName))
+            frameName = frameScriptObject.UserdataPtr.ToString();
+        
+        if (ImGui.TreeNode(frameName))
+        {
+            if (frameScriptObject is Widgets.Frame frame)
+            {
+                foreach (var child in frame.GetChildren())
+                {
+                    RenderFrameHierarchy(child);
+                }
+            }
+
+            ImGui.TreePop();
+        }
+    }
+
+    private void RenderHierarchy(Addon addon)
+    {
+        // Start a new ImGui window
+        ImGui.Begin("Hierarchy");
+        RenderFrameHierarchy(API.UIObjects.UIParent);
+        ImGui.End();
+    }
+    
+    private void CreateDockingSpaceAndMainMenu()
+    {
+        // Check if Docking is enabled
+        var io = ImGui.GetIO();
+        if ((io.ConfigFlags & ImGuiConfigFlags.DockingEnable) != 0)
+        {
+            var viewport = ImGui.GetMainViewport();
+            ImGui.SetNextWindowPos(viewport.Pos);
+            ImGui.SetNextWindowSize(viewport.Size);
+            ImGui.SetNextWindowViewport(viewport.ID);
+
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
+
+            ImGui.Begin("DockSpace", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
+                                     ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
+                                     ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoBringToFrontOnFocus |
+                                     ImGuiWindowFlags.NoNavFocus);
+
+            foreach (var menu in _menus)
+            {
+                menu.Render();
+            }
+            
+            var dockspaceId = ImGui.GetID("MainDockSpace");
+            ImGui.DockSpace(dockspaceId, Vector2.Zero, ImGuiDockNodeFlags.PassthruCentralNode);
+
+            ImGui.End();
+            ImGui.PopStyleVar(2);
+        }
     }
     
     private void SetImguiStyle()
@@ -113,6 +216,7 @@ public class UI
     
     public void Dispose()
     {
+        SaveLayout();
         _controller?.Dispose();
     }
 }

@@ -14,8 +14,8 @@ namespace WoWFrameTools;
 public class Designer
 {
     private lua_State L;
-    private readonly Addon _addon;
-    private readonly IWindow _window;
+    public readonly Addon addon;
+    public readonly IWindow window;
     private GL? _gl;
     private readonly UI _ui;
     private IInputContext? _inputContext;
@@ -31,40 +31,40 @@ public class Designer
             Title = "WoW Frame Tools"
         };
         
-        _window = Window.Create(options);
-        _window.Load += OnLoad;
-        _window.Update += OnUpdate;
-        _window.Render += OnRender;
-        _window.FramebufferResize += OnFrameBufferResize;
-        _window.Closing += OnWindowClosing;
+        window = Window.Create(options);
+        window.Load += OnLoad;
+        window.Update += OnUpdate;
+        window.Render += OnRender;
+        window.FramebufferResize += OnFrameBufferResize;
+        window.Closing += OnWindowClosing;
         
-        _ui = new UI();
-        _addon = new Addon(addonPath);
+        _ui = new UI(this);
+        addon = new Addon(addonPath);
     }
     
     public void Run()
     {
         // !!! Don't enter the infinite loop, use the other methods !!! //
-        _window?.Run();
-        _window?.Dispose();
+        window?.Run();
+        window?.Dispose();
     }
     
     private void OnLoad()
     {
-        if (_window == null)
+        if (window == null)
             throw new InvalidOperationException("Window is not initialized.");
         
-        _window.Center();
+        window.Center();
         
-        _gl = _window.CreateOpenGL();
-        _inputContext = _window.CreateInput();
+        _gl = window.CreateOpenGL();
+        _inputContext = window.CreateInput();
         
-        _ui?.Load(_gl, _window, _inputContext);
+        _ui?.Load(_gl, window, _inputContext);
         
         L = luaL_newstate();
         luaL_openlibs(L);
         
-        var task = Task.Run(() => _addon.Load(L));
+        var task = Task.Run(() => addon.Load(L));
         task.Wait();
         
         foreach (var iKeyboard in _inputContext.Keyboards)
@@ -76,13 +76,13 @@ public class Designer
     private void KeyDown(IKeyboard keyboard, Key key, int keyCode)
     {
         if (key == Key.Escape)
-            _window?.Close();
+            window?.Close();
     }
 
     private void OnUpdate(double deltaTime)
     {
         var deltaTimeF = (float)deltaTime;
-        _addon.Update(deltaTimeF);
+        addon.Update(deltaTimeF);
         _ui.Update(deltaTimeF);
     }
 
@@ -108,7 +108,7 @@ public class Designer
     private void OnWindowClosing()
     {
         // Save the saved variables
-        _addon?.SaveVariables(L);
+        addon?.SaveVariables(L);
 
         // Close Lua state
         lua_close(L);

@@ -477,7 +477,7 @@ public static class LuaHelpers
         return relativeTo;
     }
     
-    public static void PushExistingFrameToLua(lua_State L, Frame child)
+    public static void PushExistingFrameToLua(lua_State L, Widgets.ScriptObject child)
     {
         // If you're storing the table in child.LuaRegistryRef, do:
         lua_rawgeti(L, LUA_REGISTRYINDEX, child.LuaRegistryRef);
