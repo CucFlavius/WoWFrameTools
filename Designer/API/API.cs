@@ -11,13 +11,7 @@ public static class API
 {
     public static Toc? _toc;
     public static float _frameRate = 60.0f;
-    
-    public static Toc LoadToc(string path)
-    {
-        _toc = new Toc(path);
-        return _toc;
-    }
-    
+
     public static int Print(lua_State L)
     {
         var nargs = lua_gettop(L);
