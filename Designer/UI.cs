@@ -8,16 +8,23 @@ namespace WoWFrameTools;
 
 public class UI
 {
-    private readonly GL _gl;
-    private readonly ImGuiController? _controller;
+    private GL _gl;
+    private ImGuiController? _controller;
     private readonly List<Menu> _menus;
+    private MainMenu? _mainMenu;
     
-    public UI(GL gl, IWindow window, IInputContext inputContext)
+    public UI()
+    {
+        _menus = [];
+        _mainMenu = new MainMenu(this);
+    }
+
+    public void Load(GL gl, IWindow window, IInputContext inputContext)
     {
         _gl = gl;
         _controller = new ImGuiController(gl, window, inputContext);
-        _menus = [];
         SetImguiStyle();
+        _mainMenu?.Load();
     }
 
     public void AddMenu(Menu menu)
