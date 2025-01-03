@@ -129,7 +129,13 @@ public class Frame : Region
     // Frame:GetHitRectInsets() : left, right, top, bottom - Returns the insets of the frame's hit rectangle.
     // Frame:GetHyperlinksEnabled() : enabled - Returns true if mouse interaction with hyperlinks on the frame is enabled.
     // Frame:GetID() : id - Returns the frame's numeric identifier.
+    
     // Frame:GetNumChildren() : numChildren - Returns the number of child frames belonging to the frame.
+    public int GetNumChildren()
+    {
+        return this._children?.Count ?? 0;
+    }
+    
     // Frame:GetNumRegions() : numRegions - Returns the number of non-Frame child regions belonging to the frame.
     // Frame:GetPropagateKeyboardInput() : propagate - Returns whether the frame propagates keyboard events.
     // Frame:GetRaisedFrameLevel() : frameLevel

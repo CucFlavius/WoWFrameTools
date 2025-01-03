@@ -229,6 +229,15 @@ public static class Frame
         return 1;
     }
     
+    public static int internal_GetNumChildren(lua_State L)
+    {
+        var frame = GetThis(L, 1);
+        var count = frame?.GetNumChildren() ?? 0;
+
+        lua_pushnumber(L, count);
+        return 1;
+    }
+    
     public static int internal_RegisterEvent(lua_State L)
     {
         try
@@ -662,6 +671,7 @@ public static class Frame
         LuaHelpers.RegisterMethod(L, "SetResizeBounds", Internal.Frame.internal_SetResizeBounds);
         LuaHelpers.RegisterMethod(L, "SetFrameLevel", Internal.Frame.internal_SetFrameLevel);
         LuaHelpers.RegisterMethod(L, "GetFrameLevel", Internal.Frame.internal_GetFrameLevel);
+        LuaHelpers.RegisterMethod(L, "GetNumChildren", Internal.Frame.internal_GetNumChildren);
         LuaHelpers.RegisterMethod(L, "SetClipsChildren", Internal.Frame.internal_SetClipsChildren);
         LuaHelpers.RegisterMethod(L, "SetUserPlaced", Internal.Frame.internal_SetUserPlaced);
         LuaHelpers.RegisterMethod(L, "GetChildren", Internal.Frame.internal_GetChildren);

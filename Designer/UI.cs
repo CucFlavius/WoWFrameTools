@@ -4,6 +4,7 @@ using Silk.NET.Input;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
+using WoWFrameTools.Widgets;
 
 namespace WoWFrameTools;
 
@@ -15,7 +16,8 @@ public class UI
     private readonly List<Menu> _menus;
     private readonly MainMenu? _mainMenu;
     private string _layoutFilePath = "imgui_layout.ini";
-    
+    private ScriptObject _selectedFrame;
+
     public UI(Designer designer)
     {
         _designer = designer;
@@ -81,11 +83,32 @@ public class UI
         // Rest of the UI
         if (_designer.addon.isLoaded)
         {
+            ImGui.ShowDemoWindow();
+            
             ImGui.Begin("Addon");
-            ImGui.Text($"{_designer.addon.toc?.Title}");
+            RenderAddon();
             ImGui.End();
 
-            RenderHierarchy(_designer.addon);
+            ImGui.Begin("Hierarchy");
+            
+            // Temporarily adjust style to reduce vertical padding
+            //var originalFramePadding = ImGui.GetStyle().FramePadding;
+            //var originalItemSpacing = ImGui.GetStyle().ItemSpacing;
+
+            //ImGui.GetStyle().FramePadding = new System.Numerics.Vector2(4.0f, 100.0f); // Adjust the vertical padding (y = 1.0f)
+            //ImGui.GetStyle().ItemSpacing = new System.Numerics.Vector2(4.0f, 0.0f);  // Adjust spacing between items (y = 1.0f)
+            
+            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(4.0f, 10.0f));
+            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4.0f, 0.0f));
+            
+            RenderFrameHierarchy(API.UIObjects.UIParent);
+            
+            // Restore original style
+            ImGui.PopStyleVar();
+            //ImGui.GetStyle().FramePadding = originalFramePadding;
+            //ImGui.GetStyle().ItemSpacing = originalItemSpacing;
+            
+            ImGui.End();
         }
 
         _controller?.Render();
@@ -95,12 +118,45 @@ public class UI
     {
         if (frameScriptObject == null)
             return;
-        
+
         var frameName = frameScriptObject.GetName();
         if (string.IsNullOrEmpty(frameName))
             frameName = frameScriptObject.UserdataPtr.ToString();
+
+        var frameType = frameScriptObject.GetType().ToString().Substring(22);
+
+        int numChildren = 0;
+        if (frameScriptObject is Widgets.Frame frame0)
+        {
+            numChildren = frame0.GetNumChildren();
+        }
+
+        var flags = ImGuiTreeNodeFlags.OpenOnDoubleClick | ImGuiTreeNodeFlags.OpenOnArrow;// | ImGuiTreeNodeFlags.Framed;
+
+        if (_selectedFrame == frameScriptObject)
+        {
+            flags |= ImGuiTreeNodeFlags.Selected;
+        }
+
+        if (numChildren == 0)
+        {
+            flags |= ImGuiTreeNodeFlags.Leaf;
+        }
         
-        if (ImGui.TreeNode(frameName))
+        // Create a unique ID for the node to avoid conflicts
+        ImGui.PushID(frameScriptObject.GetHashCode());
+
+        // Check if the tree node is expanded
+        var opened = ImGui.TreeNodeEx(frameName, flags);
+
+        // Handle clicks on the tree node, even if it's not expanded
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+        {
+            _selectedFrame = frameScriptObject; // Set the selected frame
+        }
+
+        // Render children if the node is expanded
+        if (opened)
         {
             if (frameScriptObject is Widgets.Frame frame)
             {
@@ -112,14 +168,14 @@ public class UI
 
             ImGui.TreePop();
         }
+
+        ImGui.PopID();
     }
 
-    private void RenderHierarchy(Addon addon)
+    
+    private void RenderAddon()
     {
-        // Start a new ImGui window
-        ImGui.Begin("Hierarchy");
-        RenderFrameHierarchy(API.UIObjects.UIParent);
-        ImGui.End();
+        ImGui.Text($"{_designer.addon.toc?.Title}");
     }
     
     private void CreateDockingSpaceAndMainMenu()
