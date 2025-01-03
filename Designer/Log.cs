@@ -11,17 +11,17 @@ public static class Log
     private const bool enableEventRegisterLogging = true;
     private const bool enableScriptSetLogging = true;
     private const bool enableEventUnRegisterLogging = true;
-    private const bool enableChatLogging = true;
-    private const bool enableHookScriptLogging = true;
+    private const bool enableChatLogging = false;
+    private const bool enableHookScriptLogging = false;
     private const bool enablePrintLogging = true;
     private const bool enableRemoveScriptLogging = true;
-    private const bool enableProcessFileLogging = true;
-    private const bool enableAddonMessageLogging = true;
+    private const bool enableProcessFileLogging = false;
+    private const bool enableAddonMessageLogging = false;
     
-    private const bool enableFrameCreationLogging = true;
-    private const bool enableCreateTextureLogging = true;
-    private const bool enableCreateFontStringLogging = true;
-    private const bool enableCreateLineLogging = true;
+    private const bool enableFrameCreationLogging = false;
+    private const bool enableCreateTextureLogging = false;
+    private const bool enableCreateFontStringLogging = false;
+    private const bool enableCreateLineLogging = false;
 
     public static void EventTrigger(string eventName, string? param = null, Frame? frame = null)
     {
@@ -47,7 +47,7 @@ public static class Log
         if (!enableScriptSetLogging)
             return;
 
-        AnsiConsole.MarkupLine($"Script [green]'{scriptTypeName}'[/] set successfully to frame {frame}");
+        AnsiConsole.MarkupLine($"ScriptSet [green]'{scriptTypeName}'[/] set successfully to frame {frame}");
     }
 
     public static void CreateFrame(Frame frame)
@@ -96,7 +96,7 @@ public static class Log
         AnsiConsole.WriteLine(toString);
     }
 
-    public static void RemoveScript(string scriptTypeName, ScriptObject frame)
+    public static void RemoveScript(string? scriptTypeName, ScriptObject? frame)
     {
         if (!enableRemoveScriptLogging)
             return;
@@ -130,21 +130,6 @@ public static class Log
     public static void Warn(string p0)
     {
         AnsiConsole.MarkupLine($"[yellow]Warning: {p0}[/]");
-    }
-
-    public static void HookScript(string scriptTypeName, Frame frame)
-    {
-        throw new NotImplementedException();
-    }
-
-    public static void RemoveScript(string scriptTypeName, Frame frame)
-    {
-        throw new NotImplementedException();
-    }
-
-    public static void ScriptSet(string scriptTypeName, Frame frame)
-    {
-        throw new NotImplementedException();
     }
 
     public static void Exception(Exception exception)

@@ -4,6 +4,7 @@ using Spectre.Console;
 using WoWFrameTools.API;
 using WoWFrameTools.Widgets;
 using static LuaNET.Lua51.Lua;
+using ScriptObject = WoWFrameTools.Internal.ScriptObject;
 
 namespace WoWFrameTools;
 
@@ -61,8 +62,10 @@ internal class Program
         LuaHelpers.RegisterGlobalMethod(L, "GetLocale", Game.GetLocale);
         LuaHelpers.RegisterGlobalMethod(L, "SendChatMessage", Game.SendChatMessage);
         LuaHelpers.RegisterGlobalMethod(L, "SendAddonMessage", Game.SendAddonMessage);
+        LuaHelpers.RegisterGlobalMethod(L, "UnitName", Game.UnitName);
         LuaHelpers.RegisterGlobalMethod(L, "print", API.API.Print);
         LuaHelpers.RegisterGlobalMethod(L, "IsLoggedIn", API.API.IsLoggedIn);
+        LuaHelpers.RegisterGlobalMethod(L, "strsplit", API.API.strsplit);
         C_Addons.Register(L);
         C_ChatInfo.Register(L);
         C_CVar.Register(L);
@@ -91,11 +94,9 @@ internal class Program
         ////////////////////
         
         UIObjects.UIParent = new Widgets.Frame("Frame", "UIParent", null, null, 0);
-        //UIObjects.UIParent.RegisterMetaTable(L);
         UIObjects.CreateGlobalFrame(L, UIObjects.UIParent);
         
         UIObjects.Minimap = new Minimap("Minimap", UIObjects.UIParent, null, 0);
-        //UIObjects.Minimap.RegisterMetaTable(L);
         UIObjects.CreateGlobalFrame(L, UIObjects.Minimap);
         
         SavedVariables.RegisterSavedVariables(L, toc);
@@ -111,24 +112,17 @@ internal class Program
         
         // Start the events
         // https://warcraft.wiki.gg/wiki/AddOn_loading_process
-        //API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
-        //API.API.TriggerEvent(L, "PLAYER_LOGIN");
-        //API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
-        try
-        {
-            var result = luaL_dostring(L, "SceneMachine.Start()");
-            if (result != 0) // Lua error
-            {
-                var errorMessage = lua_tostring(L, -1);
-                AnsiConsole.WriteLine($"Lua Error: {errorMessage}");
-                lua_pop(L, 1); // Remove the error from the stack
-            }
-        }
-        catch (Exception e)
-        {
-            AnsiConsole.WriteException(e);
-        }
+        API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
+        API.API.TriggerEvent(L, "PLAYER_LOGIN");
+        API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
 
+        foreach (var (ptr, frame) in API.UIObjects._frameRegistry)
+        {
+            // number - The time in seconds since the last OnUpdate dispatch,
+            // but excluding time when the user interface was not being drawn such as while zoning into the game world
+            frame.OnUpdate(0);
+        }
+     
         // Save the saved variables
         SavedVariables.SaveSavedVariables(L, toc);
 

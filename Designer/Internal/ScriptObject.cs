@@ -134,9 +134,9 @@ public static class ScriptObject
             var refIndex = luaL_ref(L, LUA_REGISTRYINDEX);
 
             // Assign the script handler using a static method
-            ScriptObject.StaticScriptHandlers[scriptTypeName] = (f, eventName, extraParam) =>
+            ScriptObject.StaticScriptHandlers[scriptTypeName] = (f, parameters) =>
             {
-                HandleScriptCallback(L, refIndex, f, eventName, extraParam);
+                HandleScriptCallback(L, refIndex, f, parameters);
             };
 
             frame.HookScript(scriptTypeName, StaticScriptHandlers[scriptTypeName], refIndex);
@@ -189,19 +189,25 @@ public static class ScriptObject
                     // Retrieve the Frame object
                     var frame = GetThis(L, 1);
 
-                    // Assign the script handler using a static method
-                    ScriptObject.StaticScriptHandlers[scriptTypeName] = (f, eventName, extraParam) => { HandleScriptCallback(L, refIndex, f, eventName, extraParam); };
-
-                    if (frame == null)
+                    if (scriptTypeName != null)
                     {
-                        Log.ErrorL(L, "SetScript: Invalid Frame object.");
-                        return 0;
-                    }
-                    
-                    frame.SetScript(scriptTypeName, StaticScriptHandlers[scriptTypeName], refIndex);
+                        // Assign the script handler using a static method
+                        StaticScriptHandlers[scriptTypeName] = (f, parameters) =>
+                        {
+                            HandleScriptCallback(L, refIndex, f, parameters);
+                        };
 
-                    // Optionally, log the successful script assignment
-                    Log.ScriptSet(scriptTypeName, frame);
+                        if (frame == null)
+                        {
+                            Log.ErrorL(L, "SetScript: Invalid Frame object.");
+                            return 0;
+                        }
+
+                        frame.SetScript(scriptTypeName, StaticScriptHandlers[scriptTypeName], refIndex);
+
+                        // Optionally, log the successful script assignment
+                        Log.ScriptSet(scriptTypeName, frame);
+                    }
                 }
                 else if (isNil)
                 {
@@ -299,7 +305,7 @@ public static class ScriptObject
         lua_pop(L, 1);
     }
     
-    private static void HandleScriptCallback(lua_State L, int refIndex, Widgets.ScriptObject frame, string eventName, string? extraParam)
+    private static void HandleScriptCallback(lua_State L, int refIndex, Widgets.ScriptObject frame, Widgets.Parameters? parameters)
     {
         try
         {
@@ -308,24 +314,60 @@ public static class ScriptObject
 
             // Retrieve the userdata from the registry using LuaRegistryRef
             lua_rawgeti(L, LUA_REGISTRYINDEX, frame.LuaRegistryRef); // Push 'self' userdata
-
-            // Push 'eventName'
-            lua_pushstring(L, eventName); // Push 'event'
-
-            // Push 'extraParam' if present
-            if (!string.IsNullOrEmpty(extraParam))
-                lua_pushstring(L, extraParam);
-
-            // Determine the number of arguments
-            var args = string.IsNullOrEmpty(extraParam) ? 2 : 3;
-
-            // Call the Lua function with the appropriate number of arguments, 0 results
-            if (lua_pcall(L, args, 0, 0) != 0)
+            
+            switch (parameters?.type)
             {
-                // Retrieve and log the error message
-                var error = lua_tostring(L, -1);
-                Console.WriteLine($"Lua Error in HookScript: {error}");
-                lua_pop(L, 1); // Remove error message
+                case "OnEvent":
+                {
+                    var eventParameters = (Widgets.EventParameters)parameters;
+                    var eventName = eventParameters.eventName;
+                    var extraParam = eventParameters.extraParam;
+                
+                    // Push 'eventName'
+                    lua_pushstring(L, eventName); // Push 'event'
+
+                    // Push 'extraParam' if present
+                    if (!string.IsNullOrEmpty(extraParam))
+                        lua_pushstring(L, extraParam);
+
+                    // Determine the number of arguments
+                    var args = string.IsNullOrEmpty(extraParam) ? 2 : 3;
+
+                    // Call the Lua function with the appropriate number of arguments, 0 results
+                    if (lua_pcall(L, args, 0, 0) != 0)
+                    {
+                        // Retrieve and log the error message
+                        var error = lua_tostring(L, -1);
+                        Log.Error($"HandleScriptCallback: Event: {error}");
+                        lua_pop(L, 1); // Remove error message
+                    }
+
+                    break;
+                }
+                case "OnUpdate":
+                {
+                    var updateParameters = (Widgets.UpdateParameters)parameters;
+                    var elapsed = updateParameters.elapsed;
+
+                    // Push 'elapsed'
+                    lua_pushnumber(L, elapsed);
+
+                    // Call the Lua function with 1 argument, 0 results
+                    if (lua_pcall(L, 2, 0, 0) != 0)
+                    {
+                        // Retrieve and log the error message
+                        var error = lua_tostring(L, -1);
+                        Log.Error($"HandleScriptCallback: Update: {error}");
+                        lua_pop(L, 1); // Remove error message
+                    }
+
+                    break;
+                }
+                default:
+                    // Push 'nil' for unsupported parameters
+                    Log.Error($"HandleScriptCallback: Unsupported parameters of type {parameters.type}");
+                    lua_pushnil(L);
+                    break;
             }
         }
         catch (Exception ex)

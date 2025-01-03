@@ -6,7 +6,35 @@ using static LuaNET.Lua51.Lua;
 
 namespace WoWFrameTools.Widgets
 {
-    public delegate void ScriptHandler(ScriptObject frame, string eventName, string? extraParam = null);
+    public abstract class Parameters
+    {
+        public abstract string type { get; }
+    }
+    
+    public class ShowParameters : Parameters
+    {
+        public override string type => "OnShow";
+    }
+    
+    public class HideParameters : Parameters
+    {
+        public override string type => "OnHide";
+    }
+    
+    public class EventParameters : Parameters
+    {
+        public override string type => "OnEvent";
+        public string eventName { get; set; }
+        public string? extraParam { get; set; }
+    }
+    
+    public class UpdateParameters : Parameters
+    {
+        public override string type => "OnUpdate";
+        public float elapsed { get; set; }
+    }
+    
+    public delegate void ScriptHandler(ScriptObject frame, Parameters? parameters);
     
     /// <summary>
     /// https://warcraft.wiki.gg/wiki/UIOBJECT_Object
@@ -20,8 +48,8 @@ namespace WoWFrameTools.Widgets
 
         protected ScriptObject(string objectType, string? name, FrameScriptObject? parent) : base(objectType, name)
         {
-            _scripts = new Dictionary<string, List<ScriptHandler>?>();
-            _scriptRefs = new Dictionary<string, int>();
+            _scripts = [];
+            _scriptRefs = [];
             _parent = parent;
         }
 
@@ -139,53 +167,76 @@ namespace WoWFrameTools.Widgets
                 _scripts[scriptTypeName].Add(script);
         }
         
-        // ----------- Events ---------------
+        // ----------- Scripts ---------------
 
         /// <summary>
         /// Static method to handle script callbacks to ensure delegates are static.
         /// </summary>
 
-        public void TriggerEvent(string eventName, string? param = null)
+        public void OnShow()
         {
             // Handle 'OnEvent' script type
-            if (_scripts.TryGetValue("OnEvent", out var eventHandlers))
+            if (_scripts.TryGetValue("OnShow", out var eventHandlers))
+            {
                 // Make a copy to prevent modification during iteration
                 if (eventHandlers != null)
                 {
                     var handlersCopy = new List<ScriptHandler>(eventHandlers);
                     foreach (var handler in handlersCopy)
                     {
-                        handler(this, eventName, param);
+                        handler(this, new ShowParameters());
                     }
                 }
-
-            switch (eventName)
+            }
+        }
+        
+        public void OnHide()
+        {
+            // Handle 'OnEvent' script type
+            if (_scripts.TryGetValue("OnHide", out var eventHandlers))
             {
-                // Handle 'OnShow' script type
-                case "Show" when _scripts.TryGetValue("OnShow", out var showHandlers):
+                // Make a copy to prevent modification during iteration
+                if (eventHandlers != null)
                 {
-                    if (showHandlers != null)
+                    var handlersCopy = new List<ScriptHandler>(eventHandlers);
+                    foreach (var handler in handlersCopy)
                     {
-                        var handlersCopy = new List<ScriptHandler>(showHandlers);
-                        foreach (var handler in handlersCopy) handler(this, eventName, param);
+                        handler(this, new HideParameters());
                     }
-
-                    break;
                 }
-                // Handle 'OnHide' script type
-                case "Hide" when _scripts.TryGetValue("OnHide", out var hideHandlers):
+            }
+        }
+
+        public void OnEvent(string eventName, string? param = null)
+        {
+            // Handle 'OnEvent' script type
+            if (_scripts.TryGetValue("OnEvent", out var eventHandlers))
+            {
+                // Make a copy to prevent modification during iteration
+                if (eventHandlers != null)
                 {
-                    if (hideHandlers != null)
+                    var handlersCopy = new List<ScriptHandler>(eventHandlers);
+                    foreach (var handler in handlersCopy)
                     {
-                        var handlersCopy = new List<ScriptHandler>(hideHandlers);
-                        foreach (var handler in handlersCopy) handler(this, eventName, param);
+                        handler(this, new EventParameters { eventName = eventName, extraParam = param });
                     }
-
-                    break;
                 }
-                default:
-                    //AnsiConsole.WriteLine($"No script handlers for event '{eventName}'.");
-                    break;
+            }
+        }
+        
+        public void OnUpdate(float elapsed)
+        {
+            if (_scripts.TryGetValue("OnUpdate", out var eventHandlers))
+            {
+                // Make a copy to prevent modification during iteration
+                if (eventHandlers != null)
+                {
+                    var handlersCopy = new List<ScriptHandler>(eventHandlers);
+                    foreach (var handler in handlersCopy)
+                    {
+                        handler(this, new UpdateParameters() { elapsed = elapsed });
+                    }
+                }
             }
         }
     }

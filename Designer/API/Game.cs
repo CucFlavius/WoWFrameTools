@@ -180,4 +180,43 @@ public static class Game
         // SendAddonMessage does not return any value in WoW API
         return 0;
     }
+    
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_UnitName
+    /// name, realm = UnitName(unit)
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int UnitName(lua_State L)
+    {
+        // Ensure there is exactly 1 argument: unit
+        var argc = lua_gettop(L);
+        if (argc != 1)
+        {
+            Log.ErrorL(L, "UnitName requires exactly 1 argument: unit.");
+            return 0; // Unreachable
+        }
+
+        // Retrieve the unit from Lua
+        var unit = lua_tostring(L, 1);
+
+        // Validate required parameters
+        if (string.IsNullOrEmpty(unit))
+        {
+            Log.ErrorL(L, "UnitName: 'unit' cannot be empty.");
+            return 0; // Unreachable
+        }
+
+        // Optionally, implement actual unit name retrieval logic here
+        // For example, querying a database or game API
+
+        // Push the unit name onto the Lua stack
+        lua_pushstring(L, "PlayerName");
+
+        // Push the realm name onto the Lua stack
+        lua_pushstring(L, "PlayerRealm");
+
+        // Return the number of return values
+        return 2;
+    }
 }

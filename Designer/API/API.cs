@@ -99,7 +99,7 @@ public static class API
             foreach (var frame in frames.ToList()) // Use ToList to create a copy for safe iteration
             {
                 Log.EventTrigger(eventName, param, frame);
-                frame.TriggerEvent(eventName, param);
+                frame.OnEvent(eventName, param);
             }
         }
         else
@@ -114,5 +114,33 @@ public static class API
 
         // Return the number of return values
         return 1;
+    }
+
+    /// <summary>
+    /// https://warcraft.wiki.gg/wiki/API_strsplit
+    /// s1, s2, ... = strsplit | string.split(delimiter, str [, pieces])
+    /// </summary>
+    /// <param name="L"></param>
+    /// <returns></returns>
+    public static int strsplit(lua_State L)
+    {
+        var argc = lua_gettop(L);
+        if (argc < 2)
+        {
+            Log.ErrorL(L, "strsplit requires at least 2 arguments: delimiter, str.");
+            return 0; // Unreachable
+        }
+
+        var delimiter = lua_tostring(L, 1);
+        var str = lua_tostring(L, 2);
+        var pieces = argc == 3 ? (int)lua_tonumber(L, 3) : 0;
+
+        var split = str.Split(delimiter, pieces);
+        foreach (var s in split)
+        {
+            lua_pushstring(L, s);
+        }
+
+        return split.Length;
     }
 }

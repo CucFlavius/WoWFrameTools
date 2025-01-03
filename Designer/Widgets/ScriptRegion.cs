@@ -79,7 +79,7 @@ namespace WoWFrameTools.Widgets
                 _visible = false;
                 
                 // Fire OnHide event
-                TriggerEvent("Hide");
+                OnHide();
                 
                 // TODO : Pause OnUpdate script
             }
@@ -128,7 +128,7 @@ namespace WoWFrameTools.Widgets
                 _visible = true;
                 
                 // Fire OnShow script
-                TriggerEvent("Show");
+                OnShow();
                 // TODO : Resume OnUpdate script
             }
         }
