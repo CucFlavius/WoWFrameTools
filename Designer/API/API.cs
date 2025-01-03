@@ -10,6 +10,7 @@ namespace WoWFrameTools.API;
 public static class API
 {
     public static Toc? _toc;
+    public static float _frameRate = 60.0f;
     
     public static Toc LoadToc(string path)
     {
@@ -98,7 +99,6 @@ public static class API
         {
             foreach (var frame in frames.ToList()) // Use ToList to create a copy for safe iteration
             {
-                Log.EventTrigger(eventName, param, frame);
                 frame.OnEvent(eventName, param);
             }
         }
@@ -142,5 +142,11 @@ public static class API
         }
 
         return split.Length;
+    }
+    
+    public static int GetFramerate(lua_State L)
+    {
+        lua_pushnumber(L, _frameRate);
+        return 1;
     }
 }

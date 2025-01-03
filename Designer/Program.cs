@@ -1,48 +1,74 @@
 ﻿using System.Xml;
 using LuaNET.Lua51;
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
 using Spectre.Console;
 using WoWFrameTools.API;
 using WoWFrameTools.Widgets;
 using static LuaNET.Lua51.Lua;
-using ScriptObject = WoWFrameTools.Internal.ScriptObject;
 
 namespace WoWFrameTools;
 
 internal class Program
 {
-    private static lua_State L { get; set; }
+    private static lua_State L;
+    private static Toc? toc;
+    private static IWindow? _window;
+    private static GL? _gl;
+    private static UI? _ui;
+    private static MainMenu? _mainMenu;
+    private static IInputContext? _inputContext;
+    private static readonly Vector4D<float> _clearColor = new(0.45f * 255, 0.55f * 255, 0.6f * 255, 1.0f * 255);
     
-    private static async Task Main(string[] args)
+    private static void Main(string[] args)
     {
+        var options = WindowOptions.Default with
+        {
+            Size = new Vector2D<int>(1600, 900),
+            Title = "WoW Frame Tools"
+        };
+        
+        _window = Window.Create(options);
+        _window.Load += OnLoad;
+        _window.Update += OnUpdate;
+        _window.Render += OnRender;
+        _window.FramebufferResize += OnFrameBufferResize;
+        _window.Closing += OnWindowClosing;
+        
+        _window.Run();
+    }
+    
+    private static void OnLoad()
+    {
+        if (_window == null)
+            throw new InvalidOperationException("Window is not initialized.");
+        
+        _window.Center();
+        
+        _gl = _window.CreateOpenGL();
+        _inputContext = _window.CreateInput();
+        
+        _ui = new UI(_gl, _window, _inputContext);
+        _mainMenu = new MainMenu(_ui);
+        _mainMenu.Load();
+        
         const string addonPath = @"D:\Games\World of Warcraft\_retail_\Interface\AddOns\scenemachine";
         var tocPath = Path.Combine(addonPath, "scenemachine.toc");
-        var toc = API.API.LoadToc(tocPath);
+        toc = API.API.LoadToc(tocPath);
 
         var luaFiles = new List<string>();
         foreach (var codePath in toc.CodePaths)
         {
             var absolutePath = Path.GetFullPath(Path.Combine(addonPath, codePath));
-            await ProcessFileRecursive(absolutePath, addonPath, luaFiles);
+            ProcessFileRecursive(absolutePath, addonPath, luaFiles);
         }
 
         L = luaL_newstate();
         luaL_openlibs(L);
         ProcessLuaFile(L, "Compat.lua", "");
 
-        // new Button().RegisterMetaTable(L);
-        // new EditBox().RegisterMetaTable(L);
-        // new FontString().RegisterMetaTable(L);
-        // new Frame().RegisterMetaTable(L);
-        // new GameTooltip().RegisterMetaTable(L);
-        // new Line().RegisterMetaTable(L);
-        // new Minimap().RegisterMetaTable(L);
-        // new Texture().RegisterMetaTable(L);
-        // new Model().RegisterMetaTable(L);
-        // new ModelScene().RegisterMetaTable(L);
-        // new PlayerModel().RegisterMetaTable(L);
-        // new DressUpModel().RegisterMetaTable(L);
-        // new ModelSceneActor().RegisterMetaTable(L);
-        
         Internal.Button.RegisterMetaTable(L);
         Internal.EditBox.RegisterMetaTable(L);
         Internal.FontString.RegisterMetaTable(L);
@@ -66,32 +92,11 @@ internal class Program
         LuaHelpers.RegisterGlobalMethod(L, "print", API.API.Print);
         LuaHelpers.RegisterGlobalMethod(L, "IsLoggedIn", API.API.IsLoggedIn);
         LuaHelpers.RegisterGlobalMethod(L, "strsplit", API.API.strsplit);
+        LuaHelpers.RegisterGlobalMethod(L, "GetFramerate", API.API.GetFramerate);
         C_Addons.Register(L);
         C_ChatInfo.Register(L);
         C_CVar.Register(L);
         SlashCmdList.Register(L);
-
-        //SlashCmdList.ExecuteSlashCommand(L, "/dump GetTime()");
-        
-        ////////////////////
-        // Run some tests //
-        // var success = luaL_dostring(L, "print(CreateFrame(\"Frame\", \"FrameA\"))");
-        // if (success != 0)
-        // {
-        //     AnsiConsole.WriteLine($"{lua_tostring(L, -1)}");
-        //     lua_pop(L, 1);
-        // }
-        //
-        // return;
-        // var success = luaL_dofile(L, "test.lua");
-        // if (success != 0)
-        // {
-        //     AnsiConsole.WriteLine($"{lua_tostring(L, -1)}");
-        //     lua_pop(L, 1);
-        // }
-        //
-        // return;
-        ////////////////////
         
         UIObjects.UIParent = new Widgets.Frame("Frame", "UIParent", null, null, 0);
         UIObjects.CreateGlobalFrame(L, UIObjects.UIParent);
@@ -115,21 +120,67 @@ internal class Program
         API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
         API.API.TriggerEvent(L, "PLAYER_LOGIN");
         API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
+        
+        foreach (var iKeyboard in _inputContext.Keyboards)
+            iKeyboard.KeyDown += KeyDown;
+        
+        _gl.ClearColor(_clearColor);
+    }
 
+    private static void KeyDown(IKeyboard keyboard, Key key, int keyCode)
+    {
+        if (key == Key.Escape)
+            _window?.Close();
+    }
+
+    private static void OnUpdate(double deltaTime)
+    {
+        var deltaTimeF = (float)deltaTime;
+        API.API._frameRate = 1.0f / deltaTimeF;
+        
         foreach (var (ptr, frame) in API.UIObjects._frameRegistry)
         {
             // number - The time in seconds since the last OnUpdate dispatch,
             // but excluding time when the user interface was not being drawn such as while zoning into the game world
-            frame.OnUpdate(0);
+            frame.OnUpdate(deltaTimeF);
         }
-     
+        
+        _ui?.Update(deltaTimeF);
+    }
+
+    private static void OnRender(double deltaTime)
+    {
+        if (_gl == null)
+            throw new InvalidOperationException("OpenGL is not initialized.");
+        
+        _gl.ClearColor(_clearColor);
+        _gl.Clear(ClearBufferMask.ColorBufferBit);
+        
+        _ui?.Render();
+    }
+    
+    private static void OnFrameBufferResize(Vector2D<int> size)
+    {
+        if (_gl == null)
+            throw new InvalidOperationException("OpenGL is not initialized.");
+        
+        _gl.Viewport(size);
+    }
+    
+    private static void OnWindowClosing()
+    {
         // Save the saved variables
-        SavedVariables.SaveSavedVariables(L, toc);
+        if (toc != null)
+            SavedVariables.SaveSavedVariables(L, toc);
 
         // Close Lua state
         lua_close(L);
 
         AnsiConsole.WriteLine("Lua state closed. Application exiting.");
+        
+        _ui?.Dispose();
+        _inputContext?.Dispose();
+        _gl?.Dispose();
     }
     
     private static bool ProcessLuaFile(lua_State L, string luaFile, string relativePath)

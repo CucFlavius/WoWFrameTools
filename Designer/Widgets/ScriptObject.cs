@@ -14,11 +14,21 @@ namespace WoWFrameTools.Widgets
     public class ShowParameters : Parameters
     {
         public override string type => "OnShow";
+        
+        public override string ToString()
+        {
+            return String.Empty;
+        }
     }
     
     public class HideParameters : Parameters
     {
         public override string type => "OnHide";
+
+        public override string ToString()
+        {
+            return String.Empty;
+        }
     }
     
     public class EventParameters : Parameters
@@ -26,12 +36,25 @@ namespace WoWFrameTools.Widgets
         public override string type => "OnEvent";
         public string eventName { get; set; }
         public string? extraParam { get; set; }
+
+        public override string ToString()
+        {
+            if (extraParam == null)
+                return $"Event: {eventName}";
+            else
+                return $"Event: {eventName}, ExtraParam: {extraParam}";
+        }
     }
     
     public class UpdateParameters : Parameters
     {
         public override string type => "OnUpdate";
         public float elapsed { get; set; }
+        
+        public override string ToString()
+        {
+            return $"Elapsed: {elapsed}";
+        }
     }
     
     public delegate void ScriptHandler(ScriptObject frame, Parameters? parameters);
@@ -184,9 +207,12 @@ namespace WoWFrameTools.Widgets
                     var handlersCopy = new List<ScriptHandler>(eventHandlers);
                     foreach (var handler in handlersCopy)
                     {
-                        handler(this, new ShowParameters());
+                        var parameters = new ShowParameters();
+                        handler(this, parameters);
+                        Log.OnScript(parameters, this);
                     }
                 }
+                
             }
         }
         
@@ -201,7 +227,9 @@ namespace WoWFrameTools.Widgets
                     var handlersCopy = new List<ScriptHandler>(eventHandlers);
                     foreach (var handler in handlersCopy)
                     {
-                        handler(this, new HideParameters());
+                        var parameters = new HideParameters();
+                        handler(this, parameters);
+                        Log.OnScript(parameters, this);
                     }
                 }
             }
@@ -218,7 +246,9 @@ namespace WoWFrameTools.Widgets
                     var handlersCopy = new List<ScriptHandler>(eventHandlers);
                     foreach (var handler in handlersCopy)
                     {
-                        handler(this, new EventParameters { eventName = eventName, extraParam = param });
+                        var parameters = new EventParameters { eventName = eventName, extraParam = param };
+                        handler(this, parameters);
+                        Log.OnScript(parameters, this);
                     }
                 }
             }
@@ -234,7 +264,9 @@ namespace WoWFrameTools.Widgets
                     var handlersCopy = new List<ScriptHandler>(eventHandlers);
                     foreach (var handler in handlersCopy)
                     {
-                        handler(this, new UpdateParameters() { elapsed = elapsed });
+                        var parameters = new UpdateParameters { elapsed = elapsed };
+                        handler(this, parameters);
+                        //Log.OnScript(parameters, this);   // lolno
                     }
                 }
             }
