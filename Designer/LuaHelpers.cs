@@ -336,7 +336,7 @@ public static class LuaHelpers
         Marshal.WriteIntPtr(userdataPtr, handlePtr);
 
         // 5) Retrieve the class-specific metatable name, e.g. "UIObjectMetaTable" or "ScriptRegionMetaTable"
-        string metaName = obj.GetMetatableName();
+        string metaName = Internal.FrameScriptObject.GetMetatableName();
 
         // 6) Get that metatable
         luaL_getmetatable(L, metaName);

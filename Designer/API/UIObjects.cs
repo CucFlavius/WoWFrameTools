@@ -9,7 +9,7 @@ public static class UIObjects
 {
     public static Frame? UIParent;
     public static Minimap? Minimap;
-    public static Dictionary<string, Frame> _nameToFrameRegistry = new();
+    public static Dictionary<string?, Frame> _nameToFrameRegistry = new();
     public static readonly Dictionary<IntPtr, Frame> _frameRegistry = new();
     public static readonly Dictionary<IntPtr, Texture> _textureRegistry = new();
     public static readonly Dictionary<IntPtr, FontString> _fontStringRegistry = new();
@@ -30,7 +30,7 @@ public static class UIObjects
         Marshal.WriteIntPtr(frameUserdataPtr, handlePtr);
 
         // 7. Set the metatable for the userdata
-        luaL_getmetatable(L, frame.GetMetatableName()); // Ensure FrameMetaTable is set up
+        luaL_getmetatable(L, Internal.Frame.GetMetatableName()); // Ensure FrameMetaTable is set up
         lua_setmetatable(L, -2);
 
         // 8. Add the Frame to the registry for later retrieval
@@ -55,7 +55,7 @@ public static class UIObjects
         lua_settable(L, -3); // table["__frame"] = userdata
 
         // Set the metatable for the table to handle method calls and property accesses
-        luaL_getmetatable(L, frame.GetMetatableName()); // Push the FrameMetaTable
+        luaL_getmetatable(L, Internal.Frame.GetMetatableName()); // Push the FrameMetaTable
         lua_setmetatable(L, -2); // setmetatable(table, "FrameMetaTable")
 
         // 10. Log the creation
@@ -108,6 +108,16 @@ public static class UIObjects
                 _ => throw new NotImplementedException($"Unsupported frame type: {frameType}")
             };
 
+            var metaTableName = frameType.ToLower() switch
+            {
+                "frame" => Internal.Frame.GetMetatableName(),
+                "button" => Internal.Button.GetMetatableName(),
+                "editbox" => Internal.EditBox.GetMetatableName(),
+                "gametooltip" => Internal.GameTooltip.GetMetatableName(),
+                "modelscene" => Internal.ModelScene.GetMetatableName(),
+                _ => throw new NotImplementedException($"Unsupported frame type: {frameType}")
+            };
+
             // 5. Allocate a GCHandle to prevent garbage collection
             var handle = GCHandle.Alloc(frame);
             var handlePtr = GCHandle.ToIntPtr(handle);
@@ -119,7 +129,7 @@ public static class UIObjects
             Marshal.WriteIntPtr(userdataPtr, handlePtr);
 
             // 7. Set the metatable for the userdata
-            luaL_getmetatable(L, frame.GetMetatableName()); // Ensure FrameMetaTable is set up
+            luaL_getmetatable(L, metaTableName); // Ensure FrameMetaTable is set up
             lua_setmetatable(L, -2);
 
             // 8. Add the Frame to the registry for later retrieval
@@ -145,7 +155,7 @@ public static class UIObjects
             lua_settable(L, -3); // table["__frame"] = userdata
 
             // Set the metatable for the table to handle method calls and property accesses
-            luaL_getmetatable(L, frame.GetMetatableName()); // Push the FrameMetaTable
+            luaL_getmetatable(L, metaTableName); // Push the FrameMetaTable
             lua_setmetatable(L, -2); // setmetatable(table, "FrameMetaTable")
 
             // 10. Log the creation

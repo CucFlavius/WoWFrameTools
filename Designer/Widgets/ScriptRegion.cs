@@ -29,25 +29,9 @@ namespace WoWFrameTools.Widgets
         /// ScriptRegion:EnableMouse([enable]) - Sets whether the region should receive mouse input.
         /// </summary>
         /// <param name="enable"></param>
-        private void EnableMouse(bool enable)
+        public void EnableMouse(bool enable)
         {
             _mouseEnabled = enable;
-        }
-        private int internal_EnableMouse(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-
-            var argc = lua_gettop(L);
-            if (argc < 2)
-            {
-                Log.ErrorL(L, "EnableMouse requires exactly 1 argument: enable.");
-                return 0; // Unreachable
-            }
-
-            var enable = lua_toboolean(L, 2) != 0;
-            frame?.EnableMouse(enable);
-
-            return 0;
         }
         
         // ScriptRegion:EnableMouseMotion([enable]) - Sets whether the region should receive mouse hover events.
@@ -60,17 +44,9 @@ namespace WoWFrameTools.Widgets
         /// ScriptRegion:GetHeight([ignoreRect]) : height - Returns the height of the region.
         /// </summary>
         /// <returns></returns>
-        private float GetHeight()
+        public float GetHeight()
         {
             return _height;
-        }
-        private int internal_GetHeight(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-            var height = frame?.GetHeight() ?? 0;
-
-            lua_pushnumber(L, height);
-            return 1;
         }
         
         // ScriptRegion:GetLeft() : left #restrictedframe - Returns the offset to the left edge of the region.
@@ -86,17 +62,9 @@ namespace WoWFrameTools.Widgets
         /// ScriptRegion:GetWidth([ignoreRect]) : width - Returns the width of the region.
         /// </summary>
         /// <returns></returns>
-        private float GetWidth()
+        public float GetWidth()
         {
             return _width;
-        }
-        private int internal_GetWidth(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-            var height = frame?.GetWidth() ?? 0;
-
-            lua_pushnumber(L, height);
-            return 1;
         }
         
         /// <summary>
@@ -104,7 +72,7 @@ namespace WoWFrameTools.Widgets
         /// ScriptRegion:Hide() #secureframe - Hides the region.
         /// </summary>
         [Attributes.SecureFrame]
-        private void Hide()
+        public void Hide()
         {
             if (_visible)
             {
@@ -115,12 +83,6 @@ namespace WoWFrameTools.Widgets
                 
                 // TODO : Pause OnUpdate script
             }
-        }
-        private int internal_Hide(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-            frame?.Hide();
-            return 0;
         }
         
         // ScriptRegion:IsCollapsed() : isCollapsed
@@ -144,16 +106,9 @@ namespace WoWFrameTools.Widgets
         /// https://warcraft.wiki.gg/wiki/API_ScriptRegion_SetParent
         /// ScriptRegion:SetParent([parent]) - Sets the parent of the region.
         /// </summary>
-        private void SetParent(ScriptRegion? parent)
+        public void SetParent(ScriptRegion? parent)
         {
             _parent = parent;
-        }
-        private int internal_SetParent(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-            var parent = GetThis(L, 2) as ScriptRegion;
-            frame?.SetParent(parent);
-            return 0;
         }
         
         // ScriptRegion:SetPassThroughButtons([button1, ...]) #nocombat - Allows the region to propagate mouse clicks to underlying regions or the world frame.
@@ -166,7 +121,7 @@ namespace WoWFrameTools.Widgets
         /// ScriptRegion:Show() #secureframe - Shows the region.
         /// </summary>
         [Attributes.SecureFrame]
-        private void Show()
+        public void Show()
         {
             if (!_visible)
             {
@@ -176,12 +131,6 @@ namespace WoWFrameTools.Widgets
                 TriggerEvent("Show");
                 // TODO : Resume OnUpdate script
             }
-        }
-        private int internal_Show(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-            frame?.Show();
-            return 0;
         }
         
         // IScriptRegionResizing //
@@ -196,15 +145,6 @@ namespace WoWFrameTools.Widgets
         {
             _points.Clear();
         }
-        public int internal_ClearAllPoints(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-
-            frame?.ClearAllPoints();
-
-            return 0;
-        }
-        
         
         // ScriptRegionResizing:ClearPoint(point) - Removes an anchor point from the region by name.
         // ScriptRegionResizing:ClearPointsOffset() #secureframe - Resets the x and y offset on the region to zero.
@@ -222,32 +162,6 @@ namespace WoWFrameTools.Widgets
         {
             
         }
-        private int internal_SetAllPoints(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-            if (frame == null)
-            {
-                lua_pushboolean(L, 0);
-                return 1;
-            }
-
-            // Retrieve arguments: relativeTo (optional), doResize (optional)
-            Frame? relativeTo = null;
-            var doResize = false;
-
-            if (lua_gettop(L) >= 2 && lua_isnil(L, 2) != 0)
-            {
-                relativeTo = GetThis(L, 2) as Frame;
-            }
-
-            if (lua_gettop(L) >= 3) doResize = lua_toboolean(L, 3) != 0;
-
-            // Set all points relative to another frame
-            frame.SetAllPoints(relativeTo, doResize);
-
-            lua_pushboolean(L, 1);
-            return 1;
-        }
         
         /// <summary>
         /// https://warcraft.wiki.gg/wiki/API_ScriptRegionResizing_SetSize
@@ -257,24 +171,6 @@ namespace WoWFrameTools.Widgets
         public void SetHeight(float height)
         {
             _height = height;
-        }
-        private int internal_SetHeight(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-
-            var argc = lua_gettop(L);
-            if (argc < 2)
-            {
-                Log.ErrorL(L, "SetHeight requires exactly 1 argument: height.");
-                return 0; // Unreachable
-            }
-
-            var height = (float)lua_tonumber(L, 2);
-
-            frame?.SetHeight(height);
-
-            lua_pushboolean(L, 1);
-            return 1;
         }
         
         /// <summary>
@@ -291,39 +187,6 @@ namespace WoWFrameTools.Widgets
             _points.Remove(point);
             _points.Add(point, new Point(point, relativeTo, relativePoint, offsetX, offsetY));
         }
-        private int internal_SetPoint(lua_State L)
-        {
-            var region = GetThis(L, 1) as ScriptRegion;
-
-            var argc = lua_gettop(L);
-            if (argc < 2)
-            {
-                Log.ErrorL(L, "SetPoint requires at least 1 argument: point.");
-                return 0; // Unreachable
-            }
-
-            var point = lua_tostring(L, 2);
-
-            Frame? relativeTo = null;
-            string? relativePoint = null;
-            float offsetX = 0;
-            float offsetY = 0;
-            
-            if (argc >= 3) relativeTo = LuaHelpers.GetFrame(L, 3);
-            
-            if (argc >= 4) relativePoint = lua_tostring(L, 4);
-
-            if (argc >= 6)
-            {
-                offsetX = (float)lua_tonumber(L, 5);
-                offsetY = (float)lua_tonumber(L, 6);
-            }
-            
-            region?.SetPoint(point!, relativeTo, relativePoint, offsetX, offsetY);
-
-            lua_pushboolean(L, 1);
-            return 1;
-        }
         
         /// <summary>
         /// https://warcraft.wiki.gg/wiki/API_ScriptRegionResizing_SetSize
@@ -336,43 +199,6 @@ namespace WoWFrameTools.Widgets
             _width = width;
             _height = height;
         }
-        private int internal_SetSize(lua_State L)
-        {
-            // Ensure there are exactly 3 arguments: frame, width, height
-            var argc = lua_gettop(L);
-            if (argc != 3)
-            {
-                Log.ErrorL(L, "SetSize requires exactly 3 arguments: frame, width, height.");
-                return 0; // Unreachable
-            }
-
-            // Retrieve the Frame object
-            var frame = GetThis(L, 1) as ScriptRegion;
-            if (frame == null)
-            {
-                Log.ErrorL(L, "SetSize: Invalid Frame object.");
-                return 0; // Unreachable
-            }
-
-            // Retrieve width and height
-            if (!LuaHelpers.IsNumber(L, 2) || !LuaHelpers.IsNumber(L, 3))
-            {
-                Log.ErrorL(L, "SetSize: 'width' and 'height' must be numbers.");
-                return 0; // Unreachable
-            }
-
-            var width = (float)lua_tonumber(L, 2);
-            var height = (float)lua_tonumber(L, 3);
-
-            // Set the size
-            frame.SetSize(width, height);
-
-            // Log the action
-            //AnsiConsole.WriteLine($"SetSize called on Frame. Width: {width}, Height: {height}");
-
-            // No return values
-            return 0;
-        }
         
         /// <summary>
         /// https://warcraft.wiki.gg/wiki/API_ScriptRegionResizing_SetSize
@@ -382,67 +208,6 @@ namespace WoWFrameTools.Widgets
         public void SetWidth(float width)
         {
             _width = width;
-        }
-        private int internal_SetWidth(lua_State L)
-        {
-            var frame = GetThis(L, 1) as ScriptRegion;
-
-            var argc = lua_gettop(L);
-            if (argc < 2)
-            {
-                Log.ErrorL(L, "SetWidth requires exactly 1 argument: width.");
-                return 0; // Unreachable
-            }
-
-            var width = (float)lua_tonumber(L, 2);
-
-            frame?.SetWidth(width);
-
-            lua_pushboolean(L, 1);
-            return 1;
-        }
-        
-        // ----------- Virtual Registration ---------------
-        
-        public override string GetMetatableName() => "ScriptRegionMetaTable";
-        
-        public override void RegisterMetaTable(lua_State L)
-        {
-            // 1) Register the base class's metatable first
-            base.RegisterMetaTable(L);
-
-            // 2) Define "ScriptRegionMetaTable"
-            var metaName = GetMetatableName();
-            luaL_newmetatable(L, metaName);
-
-            // 3) __index = ScriptRegionMetaTable
-            lua_pushvalue(L, -1);
-            lua_setfield(L, -2, "__index");
-
-            // 4) Link to the base class's metatable ("UIObjectMetaTable")
-            var baseMetaName = base.GetMetatableName();
-            luaL_getmetatable(L, baseMetaName);
-            lua_setmetatable(L, -2); // Sets ScriptRegionMetaTable's metatable to UIObjectMetaTable
-
-            // 5) Bind ScriptRegion-specific methods
-            // ScriptRegion
-            LuaHelpers.RegisterMethod(L, "Hide", internal_Hide);
-            LuaHelpers.RegisterMethod(L, "Show", internal_Show);
-            LuaHelpers.RegisterMethod(L, "EnableMouse", internal_EnableMouse);
-            LuaHelpers.RegisterMethod(L, "SetParent", internal_SetParent);
-            LuaHelpers.RegisterMethod(L, "GetHeight", internal_GetHeight);
-            LuaHelpers.RegisterMethod(L, "GetWidth", internal_GetWidth);
-            
-            // IScriptRegionResizing
-            LuaHelpers.RegisterMethod(L, "SetPoint", internal_SetPoint);
-            LuaHelpers.RegisterMethod(L, "SetSize", internal_SetSize);
-            LuaHelpers.RegisterMethod(L, "SetAllPoints", internal_SetAllPoints);
-            LuaHelpers.RegisterMethod(L, "SetHeight", internal_SetHeight);
-            LuaHelpers.RegisterMethod(L, "SetWidth", internal_SetWidth);
-            LuaHelpers.RegisterMethod(L, "ClearAllPoints", internal_ClearAllPoints);
-            
-            // 6) pop
-            lua_pop(L, 1);
         }
     }
 }

@@ -23,36 +23,4 @@ public class Texture : TextureBase
     {
         return $"Texture: {GetName() ?? "nil"} - {_drawLayer ?? "nil"}";
     }
-    
-    // ----------- Virtual Registration ---------------
-    
-    public override string GetMetatableName() => "TextureMetaTable";
-        
-    public override void RegisterMetaTable(lua_State L)
-    {
-        // 1) call base to register the "TextureMetaTable"
-        base.RegisterMetaTable(L);
-
-        // 2) Now define "TextureMetaTable"
-        var metaName = GetMetatableName();
-        luaL_newmetatable(L, metaName);
-
-        // 3) __index = TextureMetaTable
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-
-        // 4) Link to the base class's metatable ("TextureBaseMetaTable")
-        var baseMetaName = base.GetMetatableName();
-        luaL_getmetatable(L, baseMetaName);
-        lua_setmetatable(L, -2); // Sets TextureBaseMetaTable's metatable to TextureBaseMetaTable
-        
-        // 5) Bind Frame-specific methods
-        //LuaHelpers.RegisterMethod(L, "RegisterEvent", internal_RegisterEvent);
-        //LuaHelpers.RegisterMethod(L, "UnregisterAllEvents", internal_UnregisterAllEvents);
-        //LuaHelpers.RegisterMethod(L, "UnregisterEvent", internal_UnregisterEvent);
-        //LuaHelpers.RegisterMethod(L, "SetFrameStrata", internal_SetFrameStrata);
-
-        // 6) pop
-        lua_pop(L, 1);
-    }
 }

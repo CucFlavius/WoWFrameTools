@@ -7,21 +7,21 @@ namespace WoWFrameTools;
 
 public static class Log
 {
-    private const bool enableEventTriggerLogging = false;
-    private const bool enableEventRegisterLogging = false;
-    private const bool enableScriptSetLogging = false;
-    private const bool enableEventUnRegisterLogging = false;
-    private const bool enableChatLogging = false;
-    private const bool enableHookScriptLogging = false;
+    private const bool enableEventTriggerLogging = true;
+    private const bool enableEventRegisterLogging = true;
+    private const bool enableScriptSetLogging = true;
+    private const bool enableEventUnRegisterLogging = true;
+    private const bool enableChatLogging = true;
+    private const bool enableHookScriptLogging = true;
     private const bool enablePrintLogging = true;
-    private const bool enableRemoveScriptLogging = false;
-    private const bool enableProcessFileLogging = false;
-    private const bool enableAddonMessageLogging = false;
+    private const bool enableRemoveScriptLogging = true;
+    private const bool enableProcessFileLogging = true;
+    private const bool enableAddonMessageLogging = true;
     
-    private const bool enableFrameCreationLogging = false;
-    private const bool enableCreateTextureLogging = false;
-    private const bool enableCreateFontStringLogging = false;
-    private const bool enableCreateLineLogging = false;
+    private const bool enableFrameCreationLogging = true;
+    private const bool enableCreateTextureLogging = true;
+    private const bool enableCreateFontStringLogging = true;
+    private const bool enableCreateLineLogging = true;
 
     public static void EventTrigger(string eventName, string? param = null, Frame? frame = null)
     {

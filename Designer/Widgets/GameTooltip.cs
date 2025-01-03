@@ -134,29 +134,4 @@ public class GameTooltip : Frame
     // GameTooltip:SetCraftSpell(index)
     // GameTooltip:SetTrackingSpell()
     // GameTooltip:SetTradeSkillItem(index [, reagent])
-    
-    // ----------- Virtual Registration ---------------
-    
-    public override string GetMetatableName() => "GameTooltipMetaTable";
-        
-    public override void RegisterMetaTable(lua_State L)
-    {
-        // 1) call base to register the "GameTooltipMetaTable"
-        base.RegisterMetaTable(L);
-
-        // 2) Now define "GameTooltipMetaTable"
-        var metaName = GetMetatableName();
-        luaL_newmetatable(L, metaName);
-
-        // 3) __index = self
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-
-        // 4) Bind methods
-        //LuaHelpers.RegisterMethod(L, "RegisterEvent", internal_RegisterEvent);
-        //LuaHelpers.RegisterMethod(L, "UnregisterAllEvents", internal_UnregisterAllEvents);
-        
-        // 5) pop
-        lua_pop(L, 1);
-    }
 }

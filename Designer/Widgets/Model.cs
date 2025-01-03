@@ -60,20 +60,9 @@ public class Model : Frame
     /// Model:SetDesaturation(strength)
     /// </summary>
     /// <param name="strength"></param>
-    private void SetDesaturation(float strength)
+    public void SetDesaturation(float strength)
     {
         
-    }
-    private int internal_SetDesaturation(lua_State L)
-    {
-        var argc = lua_gettop(L);
-
-        var actor = GetThis(L, 1) as Model;
-        
-        var strength = (float)lua_tonumber(L, 2);
-
-        actor?.SetDesaturation(strength);
-        return 0;
     }
     
     // Model:SetFacing(facing) - Rotates the displayed model for the given angle in counter-clockwise direction.
@@ -94,20 +83,9 @@ public class Model : Frame
     /// Model:SetPitch(pitch)
     /// </summary>
     /// <param name="pitch"></param>
-    private void SetPitch(float pitch)
+    public void SetPitch(float pitch)
     {
         
-    }
-    private int internal_SetPitch(lua_State L)
-    {
-        var argc = lua_gettop(L);
-
-        var actor = GetThis(L, 1) as Model;
-        
-        var pitch = (float)lua_tonumber(L, 2);
-
-        actor?.SetPitch(pitch);
-        return 0;
     }
     
     /// <summary>
@@ -117,22 +95,9 @@ public class Model : Frame
     /// <param name="fileID"></param>
     /// <param name="useMips"></param>
     /// <returns></returns>
-    private void SetPosition(float positionX, float positionY, float positionZ)
+    public void SetPosition(float positionX, float positionY, float positionZ)
     {
         
-    }
-    private int internal_SetPosition(lua_State L)
-    {
-        var argc = lua_gettop(L);
-
-        var actor = GetThis(L, 1) as Model;
-        
-        var positionX = (float)lua_tonumber(L, 2);
-        var positionY = (float)lua_tonumber(L, 3);
-        var positionZ = (float)lua_tonumber(L, 4);
-
-        actor?.SetPosition(positionX, positionY, positionZ);
-        return 0;
     }
     
     /// <summary>
@@ -140,20 +105,9 @@ public class Model : Frame
     /// Model:SetRoll(roll)
     /// </summary>
     /// <param name="roll"></param>
-    private void SetRoll(float roll)
+    public void SetRoll(float roll)
     {
         
-    }
-    private int internal_SetRoll(lua_State L)
-    {
-        var argc = lua_gettop(L);
-
-        var actor = GetThis(L, 1) as Model;
-        
-        var roll = (float)lua_tonumber(L, 2);
-
-        actor?.SetRoll(roll);
-        return 0;
     }
     
     // Model:SetSequence(sequence) - Sets the animation-sequence to be played.
@@ -164,36 +118,4 @@ public class Model : Frame
     // Model:SetViewTranslation(x, y)
     // Model:TransformCameraSpaceToModelSpace(cameraPosition) : modelPosition
     // Model:UseModelCenterToTransform(useCenter)
-    
-    // ----------- Virtual Registration ---------------
-    
-    public override string GetMetatableName() => "ModelMetaTable";
-        
-    public override void RegisterMetaTable(lua_State L)
-    {
-        // 1) call base to register the "ModelMetaTable"
-        base.RegisterMetaTable(L);
-
-        // 2) Now define "ModelMetaTable"
-        var metaName = GetMetatableName();
-        luaL_newmetatable(L, metaName);
-
-        // 3) __index = ModelMetaTable
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-
-        // 4) Link to the base class's metatable ("FrameMetaTable")
-        var baseMetaName = base.GetMetatableName();
-        luaL_getmetatable(L, baseMetaName);
-        lua_setmetatable(L, -2); // Sets ModelMetaTable's metatable to FrameMetaTable
-        
-        // 5) Bind Frame-specific methods
-        LuaHelpers.RegisterMethod(L, "SetPosition", internal_SetPosition);
-        LuaHelpers.RegisterMethod(L, "SetRoll", internal_SetRoll);
-        LuaHelpers.RegisterMethod(L, "SetPitch", internal_SetPitch);
-        LuaHelpers.RegisterMethod(L, "SetDesaturation", internal_SetDesaturation);
-        
-        // 6) pop
-        lua_pop(L, 1);
-    }
 }

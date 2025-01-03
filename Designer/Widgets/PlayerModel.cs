@@ -39,33 +39,4 @@ public class PlayerModel : Model
     // PlayerModel:SetUnit(unit [, blend, useNativeForm]) : success - Sets the model to display the specified unit.
     // PlayerModel:StopAnimKit()
     // PlayerModel:ZeroCachedCenterXY()
-    
-    // ----------- Virtual Registration ---------------
-    
-    public override string GetMetatableName() => "PlayerModelMetaTable";
-        
-    public override void RegisterMetaTable(lua_State L)
-    {
-        // 1) call base to register the "PlayerModelMetaTable"
-        base.RegisterMetaTable(L);
-
-        // 2) Now define "PlayerModelMetaTable"
-        var metaName = GetMetatableName();
-        luaL_newmetatable(L, metaName);
-
-        // 3) __index = PlayerModelMetaTable
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-
-        // 4) Link to the base class's metatable ("ModelMetaTable")
-        var baseMetaName = base.GetMetatableName();
-        luaL_getmetatable(L, baseMetaName);
-        lua_setmetatable(L, -2); // Sets PlayerModelMetaTable's metatable to ModelMetaTable
-        
-        // 5) Bind Frame-specific methods
-        //LuaHelpers.RegisterMethod(L, "RegisterEvent", internal_RegisterEvent);
-
-        // 6) pop
-        lua_pop(L, 1);
-    }
 }

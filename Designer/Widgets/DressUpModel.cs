@@ -35,33 +35,4 @@ public class DressUpModel : Model
     // DressUpModel:TryOn(linkOrItemModifiedAppearanceID [, handSlotName, spellEnchantID]) : result - Previews an item on the model.
     // DressUpModel:Undress()
     // DressUpModel:UndressSlot(inventorySlot)
-    
-    // ----------- Virtual Registration ---------------
-    
-    public override string GetMetatableName() => "DressUpModelMetaTable";
-        
-    public override void RegisterMetaTable(lua_State L)
-    {
-        // 1) call base to register the "DressUpModelMetaTable"
-        base.RegisterMetaTable(L);
-
-        // 2) Now define "DressUpModelMetaTable"
-        var metaName = GetMetatableName();
-        luaL_newmetatable(L, metaName);
-
-        // 3) __index = DressUpModelMetaTable
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-
-        // 4) Link to the base class's metatable ("PlayerModelMetaTable")
-        var baseMetaName = base.GetMetatableName();
-        luaL_getmetatable(L, baseMetaName);
-        lua_setmetatable(L, -2); // Sets DressUpModelMetaTable's metatable to PlayerModelMetaTable
-        
-        // 5) Bind Frame-specific methods
-        //LuaHelpers.RegisterMethod(L, "RegisterEvent", internal_RegisterEvent);
-        
-        // 6) pop
-        lua_pop(L, 1);
-    }
 }

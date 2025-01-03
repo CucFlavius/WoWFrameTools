@@ -28,19 +28,33 @@ internal class Program
         luaL_openlibs(L);
         ProcessLuaFile(L, "Compat.lua", "");
 
-        new Button().RegisterMetaTable(L);
-        new EditBox().RegisterMetaTable(L);
-        new FontString().RegisterMetaTable(L);
-        new Frame().RegisterMetaTable(L);
-        new GameTooltip().RegisterMetaTable(L);
-        new Line().RegisterMetaTable(L);
-        new Minimap().RegisterMetaTable(L);
-        new Texture().RegisterMetaTable(L);
-        new Model().RegisterMetaTable(L);
-        new ModelScene().RegisterMetaTable(L);
-        new PlayerModel().RegisterMetaTable(L);
-        new DressUpModel().RegisterMetaTable(L);
-        new ModelSceneActor().RegisterMetaTable(L);
+        // new Button().RegisterMetaTable(L);
+        // new EditBox().RegisterMetaTable(L);
+        // new FontString().RegisterMetaTable(L);
+        // new Frame().RegisterMetaTable(L);
+        // new GameTooltip().RegisterMetaTable(L);
+        // new Line().RegisterMetaTable(L);
+        // new Minimap().RegisterMetaTable(L);
+        // new Texture().RegisterMetaTable(L);
+        // new Model().RegisterMetaTable(L);
+        // new ModelScene().RegisterMetaTable(L);
+        // new PlayerModel().RegisterMetaTable(L);
+        // new DressUpModel().RegisterMetaTable(L);
+        // new ModelSceneActor().RegisterMetaTable(L);
+        
+        Internal.Button.RegisterMetaTable(L);
+        Internal.EditBox.RegisterMetaTable(L);
+        Internal.FontString.RegisterMetaTable(L);
+        Internal.Frame.RegisterMetaTable(L);
+        Internal.GameTooltip.RegisterMetaTable(L);
+        Internal.Line.RegisterMetaTable(L);
+        Internal.Minimap.RegisterMetaTable(L);
+        Internal.Texture.RegisterMetaTable(L);
+        Internal.Model.RegisterMetaTable(L);
+        Internal.ModelScene.RegisterMetaTable(L);
+        Internal.PlayerModel.RegisterMetaTable(L);
+        Internal.DressUpModel.RegisterMetaTable(L);
+        Internal.ModelSceneActor.RegisterMetaTable(L);
         
         LuaHelpers.RegisterGlobalMethod(L, "CreateFrame", UIObjects.CreateFrame);
         LuaHelpers.RegisterGlobalMethod(L, "GetTime", Game.GetTime);
@@ -77,11 +91,11 @@ internal class Program
         ////////////////////
         
         UIObjects.UIParent = new Widgets.Frame("Frame", "UIParent", null, null, 0);
-        UIObjects.UIParent.RegisterMetaTable(L);
+        //UIObjects.UIParent.RegisterMetaTable(L);
         UIObjects.CreateGlobalFrame(L, UIObjects.UIParent);
         
         UIObjects.Minimap = new Minimap("Minimap", UIObjects.UIParent, null, 0);
-        UIObjects.Minimap.RegisterMetaTable(L);
+        //UIObjects.Minimap.RegisterMetaTable(L);
         UIObjects.CreateGlobalFrame(L, UIObjects.Minimap);
         
         SavedVariables.RegisterSavedVariables(L, toc);
@@ -97,23 +111,23 @@ internal class Program
         
         // Start the events
         // https://warcraft.wiki.gg/wiki/AddOn_loading_process
-        API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
-        API.API.TriggerEvent(L, "PLAYER_LOGIN");
-        API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
-        // try
-        // {
-        //     var result = luaL_dostring(L, "SceneMachine.Start()");
-        //     if (result != 0) // Lua error
-        //     {
-        //         var errorMessage = lua_tostring(L, -1);
-        //         AnsiConsole.WriteLine($"Lua Error: {errorMessage}");
-        //         lua_pop(L, 1); // Remove the error from the stack
-        //     }
-        // }
-        // catch (Exception e)
-        // {
-        //     AnsiConsole.WriteException(e);
-        // }
+        //API.API.TriggerEvent(L, "ADDON_LOADED", "scenemachine"); // → addOnName
+        //API.API.TriggerEvent(L, "PLAYER_LOGIN");
+        //API.API.TriggerEvent(L, "PLAYER_ENTERING_WORLD"); // → isInitialLogin, isReloadingUi
+        try
+        {
+            var result = luaL_dostring(L, "SceneMachine.Start()");
+            if (result != 0) // Lua error
+            {
+                var errorMessage = lua_tostring(L, -1);
+                AnsiConsole.WriteLine($"Lua Error: {errorMessage}");
+                lua_pop(L, 1); // Remove the error from the stack
+            }
+        }
+        catch (Exception e)
+        {
+            AnsiConsole.WriteException(e);
+        }
 
         // Save the saved variables
         SavedVariables.SaveSavedVariables(L, toc);

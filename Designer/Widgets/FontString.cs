@@ -30,18 +30,9 @@ public class FontString : Region, IFontInstance
     /// FontString:GetStringWidth() : width
     /// </summary>
     /// <returns></returns>
-    private float GetStringWidth()
+    public float GetStringWidth()
     {
         return 1.0f;
-    }
-    private int internal_GetStringWidth(lua_State L)
-    {
-        var fontString = GetThis(L, 1) as FontString;
-
-        var width = fontString?.GetStringWidth() ?? 1.0f;
-
-        lua_pushnumber(L, width);
-        return 1;
     }
     
     // FontString:GetText() : text
@@ -61,32 +52,9 @@ public class FontString : Region, IFontInstance
     /// FontString:SetText([text])
     /// </summary>
     /// <param name="text"></param>
-    private void SetText(string text)
+    public void SetText(string text)
     {
         
-    }
-    public int internal_SetText(lua_State L)
-    {
-        try
-        {
-            var fontString = GetThis(L, 1) as FontString;
-            if (fontString == null)
-            {
-                Log.ErrorL(L, "SetText: Invalid FontString object.");
-                return 0; // Unreachable
-            }
-
-            var text = lua_tostring(L, 2) ?? "";
-
-            fontString.SetText(text);
-        }
-        catch (Exception ex)
-        {
-            Log.ErrorL(L, $"SetText: {ex.Message}");
-            return 0; // Unreachable
-        }
-
-        return 0; // No return values
     }
     
     // FontString:SetTextHeight(height)
@@ -117,26 +85,6 @@ public class FontString : Region, IFontInstance
     {
         return true;
     }
-    public int internal_SetFont(lua_State L)
-    {
-        var fontString = GetThis(L, 1) as FontString;
-
-        var argc = lua_gettop(L);
-        if (argc < 4)
-        {
-            Log.ErrorL(L, "SetFont requires exactly 3 arguments: fontFile, height, flags.");
-            return 0; // Unreachable
-        }
-
-        var fontFile = lua_tostring(L, 2);
-        var height = (int)lua_tonumber(L, 3);
-        var flags = lua_tostring(L, 4);
-
-        var success = fontString?.SetFont(fontFile, height, flags);
-
-        lua_pushboolean(L, success == true ? 1 : 0);
-        return 1;
-    }
     
     // FontInstance:SetFontObject(font) - Sets the "parent" font object from which this object inherits properties.
     // FontInstance:SetIndentedWordWrap(wordWrap) - Sets the indentation when text wraps beyond the first line.
@@ -150,29 +98,6 @@ public class FontString : Region, IFontInstance
     {
         
     }
-    public int internal_SetJustifyH(lua_State L)
-    {
-        try
-        {
-            var fontString = GetThis(L, 1) as FontString;
-            if (fontString == null)
-            {
-                Log.ErrorL(L, "SetJustifyH: Invalid FontString object.");
-                return 0; // Unreachable
-            }
-
-            var justify = lua_tostring(L, 2) ?? "LEFT";
-
-            fontString.SetJustifyH(justify);
-        }
-        catch (Exception ex)
-        {
-            Log.ErrorL(L, $"SetJustifyH: {ex.Message}");
-            return 0; // Unreachable
-        }
-
-        return 0; // No return values
-    }
     
     /// <summary>
     /// https://warcraft.wiki.gg/wiki/API_FontInstance_SetJustifyV
@@ -181,29 +106,6 @@ public class FontString : Region, IFontInstance
     /// <param name="justify"></param>
     public void SetJustifyV(string justify)
     {
-    }
-    public int internal_SetJustifyV(lua_State L)
-    {
-        try
-        {
-            var fontString = GetThis(L, 1) as FontString;
-            if (fontString == null)
-            {
-                Log.ErrorL(L, "SetJustifyV: Invalid FontString object.");
-                return 0; // Unreachable
-            }
-
-            var justify = lua_tostring(L, 2) ?? "MIDDLE";
-
-            fontString.SetJustifyV(justify);
-        }
-        catch (Exception ex)
-        {
-            Log.ErrorL(L, $"SetJustifyV: {ex.Message}");
-            return 0; // Unreachable
-        }
-
-        return 0; // No return values
     }
     
     // FontInstance:SetShadowColor(colorR, colorG, colorB [, a]) - Returns the color of text shadow.
@@ -221,66 +123,9 @@ public class FontString : Region, IFontInstance
     public void SetTextColor(float colorR, float colorG, float colorB, float colorA)
     {
     }
-    public int internal_SetTextColor(lua_State L)
-    {
-        var fontString = GetThis(L, 1) as FontString;
-
-        var argc = lua_gettop(L);
-        if (argc < 3)
-        {
-            Log.ErrorL(L, "SetTextColor requires at least 3 arguments: colorR, colorG, colorB.");
-            return 0; // Unreachable
-        }
-
-        var colorR = (float)lua_tonumber(L, 2);
-        var colorG = (float)lua_tonumber(L, 3);
-        var colorB = (float)lua_tonumber(L, 4);
-        var colorA = argc == 5 ? (float)lua_tonumber(L, 5) : 1.0f;
-
-        fontString?.SetTextColor(colorR, colorG, colorB, colorA);
-
-        lua_pushboolean(L, 1);
-        return 1;
-    }
     
     public override string ToString()
     {
         return $"FontString: {GetName() ?? "nil"} - {_drawLayer ?? "nil"}";
-    }
-    
-    // ----------- Virtual Registration ---------------
-    
-    public override string GetMetatableName() => "FontStringMetaTable";
-
-    public override void RegisterMetaTable(lua_State L)
-    {
-        // 1) call base to register the "FontStringMetaTable"
-        base.RegisterMetaTable(L);
-
-        // 2) Now define "FontStringMetaTable"
-        var metaName = GetMetatableName();
-        luaL_newmetatable(L, metaName);
-
-        // 3) __index = FontStringMetaTable
-        lua_pushvalue(L, -1);
-        lua_setfield(L, -2, "__index");
-
-        // 4) Link to the base class's metatable ("RegionMetaTable")
-        var baseMetaName = base.GetMetatableName();
-        luaL_getmetatable(L, baseMetaName);
-        lua_setmetatable(L, -2); // Sets FontStringMetaTable's metatable to RegionMetaTable
-
-        // 5) Bind Frame-specific methods
-        LuaHelpers.RegisterMethod(L, "SetText", internal_SetText);
-        LuaHelpers.RegisterMethod(L, "GetStringWidth", internal_GetStringWidth);
-
-        // IFontInstance
-        LuaHelpers.RegisterMethod(L, "SetFont", internal_SetFont);
-        LuaHelpers.RegisterMethod(L, "SetJustifyH", internal_SetJustifyH);
-        LuaHelpers.RegisterMethod(L, "SetJustifyV", internal_SetJustifyV);
-        LuaHelpers.RegisterMethod(L, "SetTextColor", internal_SetTextColor);
-
-        // 6) pop
-        lua_pop(L, 1);
     }
 }
