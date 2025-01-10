@@ -17,6 +17,7 @@ public class UI
     private readonly MainMenu? _mainMenu;
     private string _layoutFilePath = "imgui_layout.ini";
     private ScriptObject _selectedFrame;
+    private bool _showDemoWindow = false;
 
     public UI(Designer designer)
     {
@@ -83,38 +84,32 @@ public class UI
         // Rest of the UI
         if (_designer.addon.isLoaded)
         {
-            ImGui.ShowDemoWindow();
+            if (_showDemoWindow)
+                ImGui.ShowDemoWindow();
             
-            ImGui.Begin("Addon");
             RenderAddon();
-            ImGui.End();
-
-            ImGui.Begin("Hierarchy");
-            
-            // Temporarily adjust style to reduce vertical padding
-            //var originalFramePadding = ImGui.GetStyle().FramePadding;
-            //var originalItemSpacing = ImGui.GetStyle().ItemSpacing;
-
-            //ImGui.GetStyle().FramePadding = new System.Numerics.Vector2(4.0f, 100.0f); // Adjust the vertical padding (y = 1.0f)
-            //ImGui.GetStyle().ItemSpacing = new System.Numerics.Vector2(4.0f, 0.0f);  // Adjust spacing between items (y = 1.0f)
-            
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(4.0f, 10.0f));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4.0f, 0.0f));
-            
-            RenderFrameHierarchy(API.UIObjects.UIParent);
-            
-            // Restore original style
-            ImGui.PopStyleVar();
-            //ImGui.GetStyle().FramePadding = originalFramePadding;
-            //ImGui.GetStyle().ItemSpacing = originalItemSpacing;
-            
-            ImGui.End();
+            RenderHierarchy();
         }
 
         _controller?.Render();
     }
 
-    private void RenderFrameHierarchy(Widgets.ScriptObject? frameScriptObject)
+    private void RenderHierarchy()
+    {
+        ImGui.Begin("Hierarchy");
+            
+        // Temporarily adjust style to reduce vertical padding
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(4.0f, 10.0f));
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(4.0f, 0.0f));
+            
+        RenderFrameItem(API.UIObjects.UIParent);
+            
+        ImGui.PopStyleVar();
+
+        ImGui.End();
+    }
+    
+    private void RenderFrameItem(ScriptObject? frameScriptObject)
     {
         if (frameScriptObject == null)
             return;
@@ -162,7 +157,7 @@ public class UI
             {
                 foreach (var child in frame.GetChildren())
                 {
-                    RenderFrameHierarchy(child);
+                    RenderFrameItem(child);
                 }
             }
 
@@ -171,11 +166,196 @@ public class UI
 
         ImGui.PopID();
     }
-
     
     private void RenderAddon()
     {
-        ImGui.Text($"{_designer.addon.toc?.Title}");
+        ImGui.Begin("Addon");
+
+        _gl.Enable(EnableCap.Blend);
+        _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+        
+        // Get the current window's draw list
+        var drawList = ImGui.GetWindowDrawList();
+
+        // Define the rectangle's position and size
+        var windowPos = ImGui.GetWindowPos(); // Top-left corner of the window
+        var windowSize = ImGui.GetWindowSize(); // Size of the window
+        
+        DrawFrame(API.UIObjects.UIParent, drawList, windowPos);
+        
+        ImGui.End();
+        
+        _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+    }
+
+    private void DrawFrame(Frame? frame, ImDrawListPtr drawList, Vector2 windowPos)
+    {
+        if (frame == null)
+            return;
+        
+        var points = frame._points;
+
+        Vector2 refPos = Vector2.Zero;
+        
+        if (frame._parent == null)
+        {
+            refPos = windowPos;
+        }
+        else
+        {
+            refPos = (frame._parent as Frame).relativePoint;
+        }
+        
+        var (rectStart, rectEnd) = CalculateRect(frame);
+        
+        // Draw the rectangle
+        drawList.AddRectFilled(
+            rectStart,          // Top-left corner
+            rectEnd,            // Bottom-right corner
+            ImGui.GetColorU32(new Vector4(0f, 1.0f, 0f, 0.1f)) // Color (RGBA)
+        );
+
+        if (frame?.GetNumChildren() > 0)
+        {
+            var children = frame?.GetChildren();
+            
+            foreach (var child in children)
+            {
+                DrawFrame(child as Frame, drawList, windowPos);
+            }
+        }
+    }
+
+    private (Vector2, Vector2) CalculateRect(Frame frame)
+    {
+        Vector2 rectStart = Vector2.Zero;
+        Vector2 rectEnd = Vector2.Zero;
+
+        if (frame?._points == null || frame._points.Count == 0)
+        {
+            rectEnd = new Vector2(frame._width, frame._height);
+            return (rectStart, rectEnd);
+        }
+
+        if (frame?._points.Count == 1)
+        {
+            if (frame._points.TryGetValue("TOPLEFT", out var point))
+            {
+                rectStart = new Vector2(point.offsetX, point.offsetY);
+                rectEnd = new Vector2(frame._width + point.offsetX, frame._height + point.offsetY);
+            }
+            else if (frame._points.TryGetValue("BOTTOMRIGHT", out point))
+            {
+                rectStart = new Vector2(point.offsetX - frame._width, point.offsetY - frame._height);
+                rectEnd = new Vector2(point.offsetX, point.offsetY);
+            }
+            else if (frame._points.TryGetValue("CENTER", out point))
+            {
+                rectStart = new Vector2(point.offsetX - frame._width / 2, point.offsetY - frame._height / 2);
+                rectEnd = new Vector2(point.offsetX + frame._width / 2, point.offsetY + frame._height / 2);
+            }
+            else if (frame._points.TryGetValue("TOPRIGHT", out point))
+            {
+                rectStart = new Vector2(point.offsetX - frame._width, point.offsetY);
+                rectEnd = new Vector2(point.offsetX, point.offsetY + frame._height);
+            }
+            else if (frame._points.TryGetValue("BOTTOMLEFT", out point))
+            {
+                rectStart = new Vector2(point.offsetX, point.offsetY - frame._height);
+                rectEnd = new Vector2(point.offsetX + frame._width, point.offsetY);
+            }
+        }
+
+        if (frame?._points.Count == 2)
+        {
+            var points = frame._points;
+            if (points.TryGetValue("TOPLEFT", out var topLeft) && points.TryGetValue("BOTTOMRIGHT", out var bottomRight))
+            {
+                rectStart = new Vector2(topLeft.offsetX, topLeft.offsetY);
+                rectEnd = new Vector2(bottomRight.offsetX, bottomRight.offsetY);
+            }
+            else if (points.TryGetValue("BOTTOMLEFT", out var bottomLeft) && points.TryGetValue("TOPRIGHT", out var topRight))
+            {
+                rectStart = new Vector2(topRight.offsetX, topRight.offsetY);
+                rectEnd = new Vector2(bottomLeft.offsetX, bottomLeft.offsetY);
+            }
+            else if (points.TryGetValue("TOPLEFT", out var topLeft2) && points.TryGetValue("TOPRIGHT", out var topRight2))
+            {
+                rectStart = new Vector2(topLeft2.offsetX, topLeft2.offsetY);
+                rectEnd = new Vector2(topRight2.offsetX, topRight2.offsetY - frame._height);
+            }
+            else if (points.TryGetValue("BOTTOMLEFT", out var bottomLeft2) && points.TryGetValue("BOTTOMRIGHT", out var bottomRight2))
+            {
+                rectStart = new Vector2(bottomLeft2.offsetX, bottomLeft2.offsetY + frame._height);
+                rectEnd = new Vector2(bottomRight2.offsetX, bottomRight2.offsetY);
+            }
+        }
+        
+        return (rectStart, rectEnd);
+    }
+
+    private Vector2 CalculateAnchoredPosition(
+        Vector2 referencePos,
+        Vector2 referenceSize,
+        string anchorPoint,
+        string relativePoint,
+        Vector2 offset,
+        Vector2 frameSize)
+    {
+        // Calculate the reference point on the relative frame
+        Vector2 refPoint = Vector2.Zero;
+
+        switch (relativePoint.ToUpper())
+        {
+            case "TOPLEFT":
+                refPoint = referencePos;
+                break;
+            case "TOPRIGHT":
+                refPoint = referencePos + new Vector2(referenceSize.X, 0);
+                break;
+            case "BOTTOMLEFT":
+                refPoint = referencePos + new Vector2(0, referenceSize.Y);
+                break;
+            case "BOTTOMRIGHT":
+                refPoint = referencePos + referenceSize;
+                break;
+            case "CENTER":
+                refPoint = referencePos + (referenceSize / 2);
+                break;
+            // Add more cases as needed
+            default:
+                refPoint = referencePos;
+                break;
+        }
+
+        // Calculate the anchor point on the current frame
+        Vector2 anchorOffset = Vector2.Zero;
+
+        switch (anchorPoint.ToUpper())
+        {
+            case "TOPLEFT":
+                anchorOffset = Vector2.Zero;
+                break;
+            case "TOPRIGHT":
+                anchorOffset = new Vector2(frameSize.X, 0);
+                break;
+            case "BOTTOMLEFT":
+                anchorOffset = new Vector2(0, frameSize.Y);
+                break;
+            case "BOTTOMRIGHT":
+                anchorOffset = frameSize;
+                break;
+            case "CENTER":
+                anchorOffset = frameSize / 2;
+                break;
+            // Add more cases as needed
+            default:
+                anchorOffset = Vector2.Zero;
+                break;
+        }
+
+        // Calculate the final position
+        return refPoint + offset - anchorOffset;
     }
     
     private void CreateDockingSpaceAndMainMenu()

@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using LuaNET.Lua51;
 using WoWFrameTools.API;
 using static LuaNET.Lua51.Lua;
@@ -17,6 +18,8 @@ public class Frame : Region
     public string? _strata;        // https://warcraft.wiki.gg/wiki/Frame_Strata
     public bool _isMovable;
 
+    public Vector2 relativePoint;
+    
     public Frame(string objectType = "Frame", string? name = null, Frame? parent = null, string? template = null, int id = 0) : base(objectType, name, null, parent)
     {
         _registeredEvents = [];
